@@ -361,6 +361,184 @@ func TestChargePointStatusUnmarshalJSON(t *testing.T) {
 	})
 }
 
+func TestChargingProfileUnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr error
+	}{
+		{
+			name:  "accepts required fields only",
+			input: `{"chargingProfileId":1,"stackLevel":0,"chargingProfilePurpose":"TxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"W","chargingSchedulePeriod":[{"startPeriod":0,"limit":32}]}}`,
+		},
+		{
+			name:  "accepts with all optional fields",
+			input: `{"chargingProfileId":1,"transactionId":42,"stackLevel":0,"chargingProfilePurpose":"TxProfile","chargingProfileKind":"Recurring","recurrencyKind":"Daily","validFrom":"2026-01-01T00:00:00Z","validTo":"2026-12-31T23:59:59Z","chargingSchedule":{"chargingRateUnit":"W","chargingSchedulePeriod":[{"startPeriod":0,"limit":32}]}}`,
+		},
+		{
+			name:    "rejects negative stackLevel",
+			input:   `{"chargingProfileId":1,"stackLevel":-1,"chargingProfilePurpose":"TxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"W","chargingSchedulePeriod":[{"startPeriod":0,"limit":32}]}}`,
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects missing chargingProfilePurpose",
+			input:   `{"chargingProfileId":1,"stackLevel":0,"chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"W","chargingSchedulePeriod":[{"startPeriod":0,"limit":32}]}}`,
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects missing chargingProfileKind",
+			input:   `{"chargingProfileId":1,"stackLevel":0,"chargingProfilePurpose":"TxProfile","chargingSchedule":{"chargingRateUnit":"W","chargingSchedulePeriod":[{"startPeriod":0,"limit":32}]}}`,
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects transactionId when purpose is not TxProfile",
+			input:   `{"chargingProfileId":1,"transactionId":42,"stackLevel":0,"chargingProfilePurpose":"ChargePointMaxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"W","chargingSchedulePeriod":[{"startPeriod":0,"limit":32}]}}`,
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects invalid chargingSchedule",
+			input:   `{"chargingProfileId":1,"stackLevel":0,"chargingProfilePurpose":"TxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"W","chargingSchedulePeriod":[]}}`,
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var s ChargingProfile
+			err := json.Unmarshal([]byte(tt.input), &s)
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Errorf("unexpected error\ngot:  %v\nwant: errors.Is match for %v", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error\ngot:  %v\nwant: nil", err)
+			}
+		})
+	}
+}
+
+func TestChargingProfileValidate(t *testing.T) {
+	txID := int32(42)
+	rk := RecurrencyKindTypeDaily
+	rkEmpty := RecurrencyKindType("")
+	validSchedule := ChargingSchedule{
+		ChargingRateUnit:       ChargingRateUnitTypeW,
+		ChargingSchedulePeriod: []ChargingSchedulePeriod{{StartPeriod: 0, Limit: 32}},
+	}
+
+	tests := []struct {
+		name    string
+		input   ChargingProfile
+		wantErr error
+	}{
+		{
+			name: "accepts required fields only",
+			input: ChargingProfile{
+				ChargingProfileID:      1,
+				StackLevel:             0,
+				ChargingProfilePurpose: ChargingProfilePurposeTypeTxProfile,
+				ChargingProfileKind:    ChargingProfileKindTypeAbsolute,
+				ChargingSchedule:       validSchedule,
+			},
+		},
+		{
+			name: "accepts with all optional fields",
+			input: ChargingProfile{
+				ChargingProfileID:      1,
+				TransactionID:          &txID,
+				StackLevel:             0,
+				ChargingProfilePurpose: ChargingProfilePurposeTypeTxProfile,
+				ChargingProfileKind:    ChargingProfileKindTypeRecurring,
+				RecurrencyKind:         &rk,
+				ChargingSchedule:       validSchedule,
+			},
+		},
+		{
+			name: "rejects negative stackLevel",
+			input: ChargingProfile{
+				ChargingProfileID:      1,
+				StackLevel:             -1,
+				ChargingProfilePurpose: ChargingProfilePurposeTypeTxProfile,
+				ChargingProfileKind:    ChargingProfileKindTypeAbsolute,
+				ChargingSchedule:       validSchedule,
+			},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name: "rejects missing chargingProfilePurpose",
+			input: ChargingProfile{
+				ChargingProfileID:   1,
+				StackLevel:          0,
+				ChargingProfileKind: ChargingProfileKindTypeAbsolute,
+				ChargingSchedule:    validSchedule,
+			},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name: "rejects missing chargingProfileKind",
+			input: ChargingProfile{
+				ChargingProfileID:      1,
+				StackLevel:             0,
+				ChargingProfilePurpose: ChargingProfilePurposeTypeTxProfile,
+				ChargingSchedule:       validSchedule,
+			},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name: "rejects empty recurrencyKind pointer",
+			input: ChargingProfile{
+				ChargingProfileID:      1,
+				StackLevel:             0,
+				ChargingProfilePurpose: ChargingProfilePurposeTypeTxProfile,
+				ChargingProfileKind:    ChargingProfileKindTypeRecurring,
+				RecurrencyKind:         &rkEmpty,
+				ChargingSchedule:       validSchedule,
+			},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name: "rejects transactionId when purpose is not TxProfile",
+			input: ChargingProfile{
+				ChargingProfileID:      1,
+				TransactionID:          &txID,
+				StackLevel:             0,
+				ChargingProfilePurpose: ChargingProfilePurposeTypeChargePointMaxProfile,
+				ChargingProfileKind:    ChargingProfileKindTypeAbsolute,
+				ChargingSchedule:       validSchedule,
+			},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name: "rejects invalid chargingSchedule",
+			input: ChargingProfile{
+				ChargingProfileID:      1,
+				StackLevel:             0,
+				ChargingProfilePurpose: ChargingProfilePurposeTypeTxProfile,
+				ChargingProfileKind:    ChargingProfileKindTypeAbsolute,
+				ChargingSchedule:       ChargingSchedule{ChargingRateUnit: ChargingRateUnitTypeW},
+			},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Errorf("unexpected error\ngot:  %v\nwant: errors.Is match for %v", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error\ngot:  %v\nwant: nil", err)
+			}
+		})
+	}
+}
+
 func TestChargingProfileKindTypeUnmarshalJSON(t *testing.T) {
 	t.Run("accepts known value", func(t *testing.T) {
 		var str ChargingProfileKindType
@@ -1539,6 +1717,103 @@ func TestIDTagInfoValidate(t *testing.T) {
 
 			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("got %v, want %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestKeyValueUnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr error
+	}{
+		{
+			name:  "accepts required fields only",
+			input: `{"key":"SomeKey","readonly":false}`,
+		},
+		{
+			name:  "accepts with optional value",
+			input: `{"key":"SomeKey","readonly":true,"value":"SomeValue"}`,
+		},
+		{
+			name:    "rejects missing key",
+			input:   `{"readonly":false}`,
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects key with non-printable ASCII",
+			input:   `{"key":"foobar","readonly":false}`,
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects value with non-printable ASCII",
+			input:   `{"key":"SomeKey","readonly":false,"value":"foobar"}`,
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var s KeyValue
+			err := json.Unmarshal([]byte(tt.input), &s)
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Errorf("unexpected error\ngot:  %v\nwant: errors.Is match for %v", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error\ngot:  %v\nwant: nil", err)
+			}
+		})
+	}
+}
+
+func TestKeyValueValidate(t *testing.T) {
+	value := CiString500Type("SomeValue")
+
+	tests := []struct {
+		name    string
+		input   KeyValue
+		wantErr error
+	}{
+		{
+			name:  "accepts required fields only",
+			input: KeyValue{Key: "SomeKey", Readonly: false},
+		},
+		{
+			name:  "accepts with optional value",
+			input: KeyValue{Key: "SomeKey", Readonly: true, Value: &value},
+		},
+		{
+			name:    "rejects missing key",
+			input:   KeyValue{},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects key with non-printable ASCII",
+			input:   KeyValue{Key: "foo\x7fbar"},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects value with non-printable ASCII",
+			input:   KeyValue{Key: "SomeKey", Value: func() *CiString500Type { v := CiString500Type("foo\x7fbar"); return &v }()},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Errorf("unexpected error\ngot:  %v\nwant: errors.Is match for %v", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error\ngot:  %v\nwant: nil", err)
 			}
 		})
 	}

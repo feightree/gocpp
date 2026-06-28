@@ -346,54 +346,78 @@ func (s *ChargePointStatus) UnmarshalJSON(data []byte) error {
 	)
 }
 
-// 7.8. ChargingProfile
+// ChargingProfile (7.8)
 //
 // A ChargingProfile consists of a ChargingSchedule, describing the amount of power or current that can be
 // delivered per time interval.
-// type ChargingProfile struct {
-// 	// Required. Unique identifier for this profile.
-// 	ChargingProfileID nullable.Nullable[int32] `json:"chargingProfileId"`
-// 	// Optional. Only valid if ChargingProfilePurpose is set to TxProfile,
-// 	// the transactionId MAY be used to match the profile to a transaction.
-// 	TransactionID *int32 `json:"transactionId,omitempty"`
-// 	// Required. Value determining level in hierarchy stack of profiles.
-// 	// Higher values have precedence over lower values. Lowest level is
-// 	// 0.
-// 	StackLevel int32 `json:"stackLevel"`
-// 	// Required. Defines the purpose of the schedule transferred by this
-// 	// message.
-// 	ChargingProfilePurpose ChargingProfilePurposeType `json:"chargingProfilePurpose"`
-// 	// Required. Indicates the kind of schedule.
-// 	ChargingProfileKind ChargingProfileKindType `json:"chargingProfileKind"`
-// 	// Optional. Indicates the start point of a recurrence.
-// 	RecurrencyKind *RecurrencyKindType `json:"recurrencyKind,omitempty"`
-// 	// Optional. Point in time at which the profile starts to be valid. If
-// 	// absent, the profile is valid as soon as it is received by the Charge
-// 	// Point.
-// 	ValidFrom *time.Time `json:"validFrom,omitempty"`
-// 	// Optional. Point in time at which the profile stops to be valid. If
-// 	// absent, the profile is valid until it is replaced by another profile.
-// 	ValidTo *time.Time `json:"validTo,omitempty"`
-// 	// Required. Contains limits for the available power or current over
-// 	// time.
-// 	ChargingSchedule ChargingSchedule `json:"chargingSchedule"`
-// }
+type ChargingProfile struct {
+	// Required. Unique identifier for this profile.
+	ChargingProfileID int32 `json:"chargingProfileId"`
+	// Optional. Only valid if ChargingProfilePurpose is set to TxProfile,
+	// the transactionId MAY be used to match the profile to a transaction.
+	TransactionID *int32 `json:"transactionId,omitempty"`
+	// Required. Value determining level in hierarchy stack of profiles.
+	// Higher values have precedence over lower values. Lowest level is
+	// 0.
+	StackLevel int32 `json:"stackLevel"`
+	// Required. Defines the purpose of the schedule transferred by this
+	// message.
+	ChargingProfilePurpose ChargingProfilePurposeType `json:"chargingProfilePurpose"`
+	// Required. Indicates the kind of schedule.
+	ChargingProfileKind ChargingProfileKindType `json:"chargingProfileKind"`
+	// Optional. Indicates the start point of a recurrence.
+	RecurrencyKind *RecurrencyKindType `json:"recurrencyKind,omitempty"`
+	// Optional. Point in time at which the profile starts to be valid. If
+	// absent, the profile is valid as soon as it is received by the Charge
+	// Point.
+	ValidFrom *time.Time `json:"validFrom,omitempty"`
+	// Optional. Point in time at which the profile stops to be valid. If
+	// absent, the profile is valid until it is replaced by another profile.
+	ValidTo *time.Time `json:"validTo,omitempty"`
+	// Required. Contains limits for the available power or current over
+	// time.
+	ChargingSchedule ChargingSchedule `json:"chargingSchedule"`
+}
 
-// func (cp *ChargingProfile) UnmarshalJSON(data []byte) error {
-// 	type alias ChargingProfile
-// 	var a alias
+func (s *ChargingProfile) UnmarshalJSON(data []byte) error {
+	type Alias ChargingProfile
+	var a Alias
 
-// 	if err := json.Unmarshal(data, &a); err != nil {
-// 		return err
-// 	}
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
 
-// 	if !a.ChargingProfileID.Valid {
-// 		return fmt.Errorf("chargingProfileId: %w", ErrRequired)
-// 	}
+	*s = ChargingProfile(a)
+	return s.Validate()
+}
 
-// 	*cp = ChargingProfile(a)
-// 	return nil
-// }
+func (s ChargingProfile) Validate() error {
+	if s.StackLevel < 0 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "stackLevel", "must be >= 0")
+	}
+
+	if s.ChargingProfilePurpose == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "chargingProfilePurpose", "required field is missing")
+	}
+
+	if s.ChargingProfileKind == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "chargingProfileKind", "required field is missing")
+	}
+
+	if s.RecurrencyKind != nil && *s.RecurrencyKind == "" {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "recurrencyKind", "should not be empty")
+	}
+
+	if s.TransactionID != nil && s.ChargingProfilePurpose != ChargingProfilePurposeTypeTxProfile {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "transactionId", "is only valid for TxProfile")
+	}
+
+	if err := s.ChargingSchedule.Validate(); err != nil {
+		return ocpp.WrapField("chargingSchedule", err)
+	}
+
+	return nil
+}
 
 // ChargingProfileKindType (7.9)
 //
@@ -590,7 +614,7 @@ func (s *ChargingSchedule) UnmarshalJSON(data []byte) error {
 
 func (s ChargingSchedule) Validate() error {
 	if s.Duration != nil && *s.Duration < 1 {
-		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "duration", "must be greater than 0")
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "duration", "must be > 0")
 	}
 
 	if s.ChargingRateUnit == "" {
@@ -617,7 +641,7 @@ func (s ChargingSchedule) Validate() error {
 
 	if s.MinChargingRate != nil {
 		if *s.MinChargingRate < 0 {
-			return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "minChargingRate", "must be greater than or equal to 0")
+			return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "minChargingRate", "must be >= 0")
 		}
 
 		f := strconv.FormatFloat(*s.MinChargingRate, 'f', -1, 64)
@@ -660,11 +684,11 @@ func (s *ChargingSchedulePeriod) UnmarshalJSON(data []byte) error {
 
 func (s ChargingSchedulePeriod) Validate() error {
 	if s.StartPeriod < 0 {
-		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "startPeriod", "must not be negative")
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "startPeriod", "must be >= 0")
 	}
 
 	if s.Limit < 0 {
-		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "limit", "must not be negative")
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "limit", "must be >= 0")
 	}
 
 	f := strconv.FormatFloat(s.Limit, 'f', -1, 64)

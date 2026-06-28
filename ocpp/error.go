@@ -60,7 +60,7 @@ func NewError(code ErrorCode, field, message string) *Error {
 // Error implements the standard Go error interface
 func (e *Error) Error() string {
 	if e.Field != "" {
-		return fmt.Sprintf("[%s] field '%s': %s", e.Code, e.Field, e.Message)
+		return fmt.Sprintf("[%s] %s: %s", e.Code, e.Field, e.Message)
 	}
 
 	return fmt.Sprintf("[%s] %s", e.Code, e.Message)
