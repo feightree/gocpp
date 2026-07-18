@@ -1945,6 +1945,93 @@ func TestMessageTriggerUnmarshalJSON(t *testing.T) {
 	})
 }
 
+func TestMeterValueUnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr error
+	}{
+		{
+			name:  "accepts required fields",
+			input: `{"timestamp":"2024-01-01T00:00:00Z","sampledValue":[{"value":"100"}]}`,
+		},
+		{
+			name:    "rejects missing timestamp",
+			input:   `{"sampledValue":[{"value":"100"}]}`,
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects empty sampledValue array",
+			input:   `{"timestamp":"2024-01-01T00:00:00Z","sampledValue":[]}`,
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects sampledValue entry with missing value",
+			input:   `{"timestamp":"2024-01-01T00:00:00Z","sampledValue":[{}]}`,
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var s MeterValue
+			err := json.Unmarshal([]byte(tt.input), &s)
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Errorf("unexpected error\ngot:  %v\nwant: errors.Is match for %v", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error\ngot:  %v\nwant: nil", err)
+			}
+		})
+	}
+}
+
+func TestMeterValueValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   MeterValue
+		wantErr error
+	}{
+		{
+			name:  "accepts valid input",
+			input: MeterValue{Timestamp: time.Now(), SampledValue: []SampledValue{{Value: "100"}}},
+		},
+		{
+			name:    "rejects zero timestamp",
+			input:   MeterValue{SampledValue: []SampledValue{{Value: "100"}}},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects empty sampledValue slice",
+			input:   MeterValue{Timestamp: time.Now(), SampledValue: []SampledValue{}},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects sampledValue entry with empty value",
+			input:   MeterValue{Timestamp: time.Now(), SampledValue: []SampledValue{{Value: ""}}},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Errorf("unexpected error\ngot:  %v\nwant: errors.Is match for %v", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error\ngot:  %v\nwant: nil", err)
+			}
+		})
+	}
+}
+
 func TestPhaseUnmarshalJSON(t *testing.T) {
 	t.Run("accepts known value", func(t *testing.T) {
 		var str Phase
@@ -2321,6 +2408,88 @@ func TestResetTypeUnmarshalJSON(t *testing.T) {
 			t.Errorf("unexpected error\ngot:  %v\nwant: not an ocpp.ErrPropertyConstraintViolation", err)
 		}
 	})
+}
+
+func TestSampledValueUnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr error
+	}{
+		{
+			name:  "accepts required field only",
+			input: `{"value":"100"}`,
+		},
+		{
+			name:  "accepts with optional fields",
+			input: `{"value":"100","context":"Sample.Periodic","format":"Raw","measurand":"Energy.Active.Import.Register","location":"Outlet","unit":"Wh"}`,
+		},
+		{
+			name:    "rejects missing value",
+			input:   `{}`,
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects invalid context",
+			input:   `{"value":"100","context":"BadContext"}`,
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var s SampledValue
+			err := json.Unmarshal([]byte(tt.input), &s)
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Errorf("unexpected error\ngot:  %v\nwant: errors.Is match for %v", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error\ngot:  %v\nwant: nil", err)
+			}
+		})
+	}
+}
+
+func TestSampledValueValidate(t *testing.T) {
+	ctx := ReadingContextSamplePeriodic
+
+	tests := []struct {
+		name    string
+		input   SampledValue
+		wantErr error
+	}{
+		{
+			name:  "accepts required field only",
+			input: SampledValue{Value: "100"},
+		},
+		{
+			name:  "accepts with optional fields",
+			input: SampledValue{Value: "100", Context: &ctx},
+		},
+		{
+			name:    "rejects empty value",
+			input:   SampledValue{Value: ""},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Errorf("unexpected error\ngot:  %v\nwant: errors.Is match for %v", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error\ngot:  %v\nwant: nil", err)
+			}
+		})
+	}
 }
 
 func TestTriggerMessageStatusUnmarshalJSON(t *testing.T) {

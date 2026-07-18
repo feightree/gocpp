@@ -1503,6 +1503,47 @@ func (s *MessageTrigger) UnmarshalJSON(data []byte) error {
 	)
 }
 
+// MeterValue (7.33)
+//
+// Collection of one or more sampled values in MeterValues.req and StopTransaction.req. All sampled values in a
+// MeterValue are sampled at the same point in time.
+type MeterValue struct {
+	// Required. Timestamp for measured value(s).
+	Timestamp time.Time `json:"timestamp"`
+	// Required. One or more measured values
+	SampledValue []SampledValue `json:"sampledValue"`
+}
+
+func (s *MeterValue) UnmarshalJSON(data []byte) error {
+	type Alias MeterValue
+	var raw Alias
+
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	*s = MeterValue(raw)
+	return s.Validate()
+}
+
+func (s MeterValue) Validate() error {
+	if s.Timestamp.IsZero() {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "timestamp", "required field is missing")
+	}
+
+	if len(s.SampledValue) == 0 {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "sampledValue", "must not be an empty array")
+	}
+
+	for i, v := range s.SampledValue {
+		if err := v.Validate(); err != nil {
+			return ocpp.WrapField(fmt.Sprintf("sampledValue[%d]", i), err)
+		}
+	}
+
+	return nil
+}
+
 // Phase (7.34)
 //
 // Phase as used in SampledValue. Phase specifies how a measured value is to be interpreted. Please note that not
@@ -1887,6 +1928,53 @@ func (s *ResetType) UnmarshalJSON(data []byte) error {
 		"",
 		fmt.Sprintf("%s is an invalid ResetType", raw),
 	)
+}
+
+// SampledValue (7.43)
+//
+// Single sampled value in MeterValues. Each value can be accompanied by optional fields.
+type SampledValue struct {
+	// Required. Value as a “Raw” (decimal) number or “SignedData”. Field Type is
+	// “string” to allow for digitally signed data readings. Decimal numeric values are
+	// also acceptable to allow fractional values for measurands such as Temperature
+	// and Current.
+	Value string `json:"value"`
+	// Optional. Type of detail value: start, end or sample. Default = “Sample.Periodic”
+	Context *ReadingContext `json:"context,omitempty"`
+	// Optional. Raw or signed data. Default = “Raw”
+	Format *ValueFormat `json:"format,omitempty"`
+	// Optional. Type of measurement. Default = “Energy.Active.Import.Register”
+	Measurand *Measurand `json:"measurand,omitempty"`
+	// Optional. indicates how the measured value is to be interpreted. For instance
+	// between L1 and neutral (L1-N) Please note that not all values of phase are
+	// applicable to all Measurands. When phase is absent, the measured value is
+	// interpreted as an overall value.
+	Phase *Phase `json:"phase,omitempty"`
+	// Optional. Location of measurement. Default=”Outlet”
+	Location *Location `json:"location,omitempty"`
+	// Optional. Unit of the value. Default = “Wh” if the (default) measurand is an
+	// “Energy” type.
+	Unit *UnitOfMeasure `json:"unit,omitempty"`
+}
+
+func (s *SampledValue) UnmarshalJSON(data []byte) error {
+	type Alias SampledValue
+	var raw Alias
+
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	*s = SampledValue(raw)
+	return s.Validate()
+}
+
+func (s SampledValue) Validate() error {
+	if s.Value == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "value", "required field is missing")
+	}
+
+	return nil
 }
 
 // TriggerMessageStatus (7.44)
