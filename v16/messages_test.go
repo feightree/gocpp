@@ -683,6 +683,16 @@ func TestClearCacheReqUnmarshal(t *testing.T) {
 	})
 }
 
+func TestClearCacheReqValidate(t *testing.T) {
+	t.Run("accepts valid input", func(t *testing.T) {
+		err := ClearCacheReq{}.Validate()
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
 func TestClearCacheConfUnmarshal(t *testing.T) {
 	t.Run("rejects invalid status", func(t *testing.T) {
 		var v ClearCacheConf
@@ -848,6 +858,894 @@ func TestClearChargingProfileConfValidate(t *testing.T) {
 			name:    "rejects empty status",
 			input:   ClearChargingProfileConf{Status: ""},
 			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestDataTransferReqUnmarshal(t *testing.T) {
+	t.Run("rejects oversized vendorId", func(t *testing.T) {
+		var v DataTransferReq
+		err := json.Unmarshal([]byte(`{"vendorId":"oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("rejects non-printable ASCII in vendorId", func(t *testing.T) {
+		var v DataTransferReq
+		err := json.Unmarshal([]byte(`{"vendorId":"café"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("rejects oversized messageId", func(t *testing.T) {
+		var v DataTransferReq
+		err := json.Unmarshal([]byte(`{"vendorId":"ACME","messageId":"ThisStringIsOverFiftyCharactersLongAndShouldBeRejected"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input with only required field", func(t *testing.T) {
+		var v DataTransferReq
+		err := json.Unmarshal([]byte(`{"vendorId":"ACME"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.VendorID != "ACME" {
+			t.Errorf("got %q, want %q", v.VendorID, "ACME")
+		}
+	})
+
+	t.Run("valid input with all fields", func(t *testing.T) {
+		var v DataTransferReq
+		err := json.Unmarshal([]byte(`{"vendorId":"ACME","messageId":"MsgType1","data":"payload"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.VendorID != "ACME" {
+			t.Errorf("got %q, want %q", v.VendorID, "ACME")
+		}
+
+		if v.MessageID == nil || *v.MessageID != "MsgType1" {
+			t.Errorf("got %v, want %q", v.MessageID, "MsgType1")
+		}
+
+		if v.Data == nil || *v.Data != "payload" {
+			t.Errorf("got %v, want %q", v.Data, "payload")
+		}
+	})
+}
+
+func TestDataTransferReqValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   DataTransferReq
+		wantErr error
+	}{
+		{
+			name:    "rejects empty vendorId",
+			input:   DataTransferReq{VendorID: ""},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects oversized vendorId",
+			input:   DataTransferReq{VendorID: "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects non-printable vendorId characters",
+			input:   DataTransferReq{VendorID: "café"},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name: "rejects oversized messageId",
+			input: DataTransferReq{
+				VendorID:  "ACME",
+				MessageID: ptr(CiString50Type("ThisStringIsOverFiftyCharactersLongAndShouldBeRejected")),
+			},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "accepts valid input with only required field",
+			input:   DataTransferReq{VendorID: "ACME"},
+			wantErr: nil,
+		},
+		{
+			name: "accepts valid input with all fields",
+			input: DataTransferReq{
+				VendorID:  "ACME",
+				MessageID: ptr(CiString50Type("MsgType1")),
+				Data:      ptr("payload"),
+			},
+			wantErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestDataTransferConfUnmarshal(t *testing.T) {
+	t.Run("rejects invalid status", func(t *testing.T) {
+		var v DataTransferConf
+		err := json.Unmarshal([]byte(`{"status":"BadStatus"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input", func(t *testing.T) {
+		var v DataTransferConf
+		err := json.Unmarshal([]byte(`{"status":"Accepted","data":"payload"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Status != DataTransferStatusAccepted {
+			t.Errorf("got %q, want %q", v.Status, DataTransferStatusAccepted)
+		}
+
+		if v.Data == nil || *v.Data != "payload" {
+			t.Errorf("got %v, want %q", v.Data, "payload")
+		}
+	})
+}
+
+func TestDataTransferConfValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   DataTransferConf
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   DataTransferConf{Status: DataTransferStatusAccepted},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects empty status",
+			input:   DataTransferConf{Status: ""},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestDiagnosticsStatusNotificationReqUnmarshal(t *testing.T) {
+	t.Run("rejects invalid status", func(t *testing.T) {
+		var v DiagnosticsStatusNotificationReq
+		err := json.Unmarshal([]byte(`{"status":"BadStatus"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input", func(t *testing.T) {
+		var v DiagnosticsStatusNotificationReq
+		err := json.Unmarshal([]byte(`{"status":"Uploaded"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Status != DiagnosticsStatusUploaded {
+			t.Errorf("got %q, want %q", v.Status, DiagnosticsStatusUploaded)
+		}
+	})
+}
+
+func TestDiagnosticsStatusNotificationReqValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   DiagnosticsStatusNotificationReq
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   DiagnosticsStatusNotificationReq{Status: DiagnosticsStatusUploaded},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects empty status",
+			input:   DiagnosticsStatusNotificationReq{Status: ""},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestDiagnosticsStatusNotificationConfUnmarshal(t *testing.T) {
+	t.Run("valid input", func(t *testing.T) {
+		var v DiagnosticsStatusNotificationConf
+		err := json.Unmarshal([]byte(`{}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestDiagnosticsStatusNotificationConfValidate(t *testing.T) {
+	t.Run("accepts valid input", func(t *testing.T) {
+		err := DiagnosticsStatusNotificationConf{}.Validate()
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestFirmwareStatusNotificationReqUnmarshal(t *testing.T) {
+	t.Run("rejects invalid status", func(t *testing.T) {
+		var v FirmwareStatusNotificationReq
+		err := json.Unmarshal([]byte(`{"status":"BadStatus"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input", func(t *testing.T) {
+		var v FirmwareStatusNotificationReq
+		err := json.Unmarshal([]byte(`{"status":"Installed"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Status != FirmwareStatusInstalled {
+			t.Errorf("got %q, want %q", v.Status, FirmwareStatusInstalled)
+		}
+	})
+}
+
+func TestFirmwareStatusNotificationReqValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   FirmwareStatusNotificationReq
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   FirmwareStatusNotificationReq{Status: FirmwareStatusInstalled},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects empty status",
+			input:   FirmwareStatusNotificationReq{Status: ""},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestFirmwareStatusNotificationConfUnmarshal(t *testing.T) {
+	t.Run("valid input", func(t *testing.T) {
+		var v FirmwareStatusNotificationConf
+		err := json.Unmarshal([]byte(`{}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestFirmwareStatusNotificationConfValidate(t *testing.T) {
+	t.Run("accepts valid input", func(t *testing.T) {
+		err := FirmwareStatusNotificationConf{}.Validate()
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestGetCompositeScheduleReqUnmarshal(t *testing.T) {
+	t.Run("rejects invalid chargingRateUnit", func(t *testing.T) {
+		var v GetCompositeScheduleReq
+		err := json.Unmarshal([]byte(`{"connectorId":1,"duration":60,"chargingRateUnit":"BadUnit"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input with only required fields", func(t *testing.T) {
+		var v GetCompositeScheduleReq
+		err := json.Unmarshal([]byte(`{"connectorId":1,"duration":60}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.ConnectorID != 1 {
+			t.Errorf("got %d, want %d", v.ConnectorID, 1)
+		}
+
+		if v.Duration != 60 {
+			t.Errorf("got %d, want %d", v.Duration, 60)
+		}
+	})
+
+	t.Run("valid input with all fields", func(t *testing.T) {
+		var v GetCompositeScheduleReq
+		err := json.Unmarshal([]byte(`{"connectorId":0,"duration":60,"chargingRateUnit":"W"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.ChargingRateUnit == nil || *v.ChargingRateUnit != ChargingRateUnitTypeW {
+			t.Errorf("got %v, want %q", v.ChargingRateUnit, ChargingRateUnitTypeW)
+		}
+	})
+}
+
+func TestGetCompositeScheduleReqValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   GetCompositeScheduleReq
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   GetCompositeScheduleReq{ConnectorID: 1, Duration: 60},
+			wantErr: nil,
+		},
+		{
+			name:    "accepts zero connectorId",
+			input:   GetCompositeScheduleReq{ConnectorID: 0, Duration: 60},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects negative connectorId",
+			input:   GetCompositeScheduleReq{ConnectorID: -1, Duration: 60},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects zero duration",
+			input:   GetCompositeScheduleReq{ConnectorID: 1, Duration: 0},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects negative duration",
+			input:   GetCompositeScheduleReq{ConnectorID: 1, Duration: -1},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestGetCompositeScheduleConfUnmarshal(t *testing.T) {
+	t.Run("rejects invalid status", func(t *testing.T) {
+		var v GetCompositeScheduleConf
+		err := json.Unmarshal([]byte(`{"status":"BadStatus"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("rejects invalid nested chargingSchedule", func(t *testing.T) {
+		var v GetCompositeScheduleConf
+		err := json.Unmarshal([]byte(`{"status":"Accepted","chargingSchedule":{"chargingRateUnit":"W","chargingSchedulePeriod":[]}}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("valid input with only required field", func(t *testing.T) {
+		var v GetCompositeScheduleConf
+		err := json.Unmarshal([]byte(`{"status":"Rejected"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Status != GetCompositeScheduleStatusRejected {
+			t.Errorf("got %q, want %q", v.Status, GetCompositeScheduleStatusRejected)
+		}
+	})
+
+	t.Run("valid input with all fields", func(t *testing.T) {
+		var v GetCompositeScheduleConf
+		err := json.Unmarshal([]byte(`{"status":"Accepted","connectorId":1,"scheduleStart":"2024-01-01T00:00:00Z","chargingSchedule":{"chargingRateUnit":"W","chargingSchedulePeriod":[{"startPeriod":0,"limit":10}]}}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.ConnectorID == nil || *v.ConnectorID != 1 {
+			t.Errorf("got %v, want %d", v.ConnectorID, 1)
+		}
+
+		if v.ScheduleStart == nil || !v.ScheduleStart.Equal(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)) {
+			t.Errorf("got %v, want %v", v.ScheduleStart, "2024-01-01T00:00:00Z")
+		}
+
+		if v.ChargingSchedule == nil {
+			t.Errorf("got nil, want non-nil chargingSchedule")
+		}
+	})
+}
+
+func TestGetCompositeScheduleConfValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   GetCompositeScheduleConf
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   GetCompositeScheduleConf{Status: GetCompositeScheduleStatusAccepted},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects empty status",
+			input:   GetCompositeScheduleConf{Status: ""},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "accepts positive connectorId",
+			input:   GetCompositeScheduleConf{Status: GetCompositeScheduleStatusAccepted, ConnectorID: ptr(int32(1))},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects zero connectorId",
+			input:   GetCompositeScheduleConf{Status: GetCompositeScheduleStatusAccepted, ConnectorID: ptr(int32(0))},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects negative connectorId",
+			input:   GetCompositeScheduleConf{Status: GetCompositeScheduleStatusAccepted, ConnectorID: ptr(int32(-1))},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "accepts zero-value scheduleStart",
+			input:   GetCompositeScheduleConf{Status: GetCompositeScheduleStatusAccepted, ScheduleStart: &time.Time{}},
+			wantErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestGetConfigurationReqUnmarshal(t *testing.T) {
+	t.Run("rejects oversized key", func(t *testing.T) {
+		var v GetConfigurationReq
+		err := json.Unmarshal([]byte(`{"key":["ThisStringIsOverFiftyCharactersLongAndShouldBeRejected"]}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input with no keys", func(t *testing.T) {
+		var v GetConfigurationReq
+		err := json.Unmarshal([]byte(`{}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Key != nil {
+			t.Errorf("got %v, want nil", v.Key)
+		}
+	})
+
+	t.Run("valid input with keys", func(t *testing.T) {
+		var v GetConfigurationReq
+		err := json.Unmarshal([]byte(`{"key":["ConfigKey1","ConfigKey2"]}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(v.Key) != 2 || v.Key[0] != "ConfigKey1" || v.Key[1] != "ConfigKey2" {
+			t.Errorf("got %v, want %v", v.Key, []string{"ConfigKey1", "ConfigKey2"})
+		}
+	})
+}
+
+func TestGetConfigurationReqValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   GetConfigurationReq
+		wantErr error
+	}{
+		{
+			name:    "accepts nil keys",
+			input:   GetConfigurationReq{},
+			wantErr: nil,
+		},
+		{
+			name:    "accepts valid keys",
+			input:   GetConfigurationReq{Key: []CiString50Type{"ConfigKey1", "ConfigKey2"}},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects oversized key",
+			input:   GetConfigurationReq{Key: []CiString50Type{"ThisStringIsOverFiftyCharactersLongAndShouldBeRejected"}},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects non-printable ASCII in key",
+			input:   GetConfigurationReq{Key: []CiString50Type{"café"}},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestGetConfigurationConfUnmarshal(t *testing.T) {
+	t.Run("rejects invalid nested configurationKey", func(t *testing.T) {
+		var v GetConfigurationConf
+		err := json.Unmarshal([]byte(`{"configurationKey":[{"key":"","readonly":false}]}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("rejects oversized unknownKey", func(t *testing.T) {
+		var v GetConfigurationConf
+		err := json.Unmarshal([]byte(`{"unknownKey":["ThisStringIsOverFiftyCharactersLongAndShouldBeRejected"]}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input with no fields", func(t *testing.T) {
+		var v GetConfigurationConf
+		err := json.Unmarshal([]byte(`{}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("valid input with all fields", func(t *testing.T) {
+		var v GetConfigurationConf
+		err := json.Unmarshal([]byte(`{"configurationKey":[{"key":"ConfigKey1","readonly":false,"value":"SomeValue"}],"unknownKey":["UnknownKey1"]}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(v.ConfigurationKey) != 1 || v.ConfigurationKey[0].Key != "ConfigKey1" {
+			t.Errorf("got %v, want key %q", v.ConfigurationKey, "ConfigKey1")
+		}
+
+		if len(v.UnknownKey) != 1 || v.UnknownKey[0] != "UnknownKey1" {
+			t.Errorf("got %v, want %v", v.UnknownKey, []string{"UnknownKey1"})
+		}
+	})
+}
+
+func TestGetConfigurationConfValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   GetConfigurationConf
+		wantErr error
+	}{
+		{
+			name:    "accepts empty conf",
+			input:   GetConfigurationConf{},
+			wantErr: nil,
+		},
+		{
+			name: "accepts valid configurationKey and unknownKey",
+			input: GetConfigurationConf{
+				ConfigurationKey: []KeyValue{{Key: "ConfigKey1", Readonly: false}},
+				UnknownKey:       []CiString50Type{"UnknownKey1"},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "rejects invalid configurationKey entry",
+			input: GetConfigurationConf{
+				ConfigurationKey: []KeyValue{{Key: "", Readonly: false}},
+			},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name: "rejects oversized unknownKey entry",
+			input: GetConfigurationConf{
+				UnknownKey: []CiString50Type{"ThisStringIsOverFiftyCharactersLongAndShouldBeRejected"},
+			},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestGetDiagnosticsReqUnmarshal(t *testing.T) {
+	t.Run("rejects missing location", func(t *testing.T) {
+		var v GetDiagnosticsReq
+		err := json.Unmarshal([]byte(`{}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("rejects negative retries", func(t *testing.T) {
+		var v GetDiagnosticsReq
+		err := json.Unmarshal([]byte(`{"location":"ftp://example.com/","retries":-1}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("rejects zero retryInterval", func(t *testing.T) {
+		var v GetDiagnosticsReq
+		err := json.Unmarshal([]byte(`{"location":"ftp://example.com/","retryInterval":0}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input with only required field", func(t *testing.T) {
+		var v GetDiagnosticsReq
+		err := json.Unmarshal([]byte(`{"location":"ftp://example.com/"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Location != "ftp://example.com/" {
+			t.Errorf("got %q, want %q", v.Location, "ftp://example.com/")
+		}
+	})
+
+	t.Run("valid input with all fields", func(t *testing.T) {
+		var v GetDiagnosticsReq
+		err := json.Unmarshal([]byte(`{"location":"ftp://example.com/","retries":3,"retryInterval":60,"startTime":"2024-01-01T00:00:00Z","stopTime":"2024-01-02T00:00:00Z"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Retries == nil || *v.Retries != 3 {
+			t.Errorf("got %v, want %d", v.Retries, 3)
+		}
+
+		if v.RetryInterval == nil || *v.RetryInterval != 60 {
+			t.Errorf("got %v, want %d", v.RetryInterval, 60)
+		}
+
+		if v.StartTime == nil || !v.StartTime.Equal(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)) {
+			t.Errorf("got %v, want %v", v.StartTime, "2024-01-01T00:00:00Z")
+		}
+
+		if v.StopTime == nil || !v.StopTime.Equal(time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)) {
+			t.Errorf("got %v, want %v", v.StopTime, "2024-01-02T00:00:00Z")
+		}
+	})
+}
+
+func TestGetDiagnosticsReqValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   GetDiagnosticsReq
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input with only required field",
+			input:   GetDiagnosticsReq{Location: "ftp://example.com/"},
+			wantErr: nil,
+		},
+		{
+			name: "accepts valid input with all fields",
+			input: GetDiagnosticsReq{
+				Location:      "ftp://example.com/",
+				Retries:       ptr(int32(3)),
+				RetryInterval: ptr(int32(60)),
+				StartTime:     ptr(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)),
+				StopTime:      ptr(time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)),
+			},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects empty location",
+			input:   GetDiagnosticsReq{Location: ""},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "accepts zero retries",
+			input:   GetDiagnosticsReq{Location: "ftp://example.com/", Retries: ptr(int32(0))},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects negative retries",
+			input:   GetDiagnosticsReq{Location: "ftp://example.com/", Retries: ptr(int32(-1))},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects zero retryInterval",
+			input:   GetDiagnosticsReq{Location: "ftp://example.com/", RetryInterval: ptr(int32(0))},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects negative retryInterval",
+			input:   GetDiagnosticsReq{Location: "ftp://example.com/", RetryInterval: ptr(int32(-1))},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "accepts positive retryInterval",
+			input:   GetDiagnosticsReq{Location: "ftp://example.com/", RetryInterval: ptr(int32(60))},
+			wantErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestGetDiagnosticsConfUnmarshal(t *testing.T) {
+	t.Run("rejects oversized fileName", func(t *testing.T) {
+		var v GetDiagnosticsConf
+		err := json.Unmarshal([]byte(`{"fileName":"oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input with no fields", func(t *testing.T) {
+		var v GetDiagnosticsConf
+		err := json.Unmarshal([]byte(`{}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.FileName != nil {
+			t.Errorf("got %v, want nil", v.FileName)
+		}
+	})
+
+	t.Run("valid input with fileName", func(t *testing.T) {
+		var v GetDiagnosticsConf
+		err := json.Unmarshal([]byte(`{"fileName":"diagnostics-2024-01-01.log"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.FileName == nil || *v.FileName != "diagnostics-2024-01-01.log" {
+			t.Errorf("got %v, want %q", v.FileName, "diagnostics-2024-01-01.log")
+		}
+	})
+}
+
+func TestGetDiagnosticsConfValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   GetDiagnosticsConf
+		wantErr error
+	}{
+		{
+			name:    "accepts empty conf",
+			input:   GetDiagnosticsConf{},
+			wantErr: nil,
+		},
+		{
+			name:    "accepts valid fileName",
+			input:   GetDiagnosticsConf{FileName: ptr(CiString255Type("diagnostics-2024-01-01.log"))},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects oversized fileName",
+			input:   GetDiagnosticsConf{FileName: ptr(CiString255Type("oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"))},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects non-printable ASCII in fileName",
+			input:   GetDiagnosticsConf{FileName: ptr(CiString255Type("café"))},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
 		},
 	}
 

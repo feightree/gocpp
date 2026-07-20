@@ -2,6 +2,7 @@ package v16
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	ocpp "github.com/feightree/gocpp/ocpp"
@@ -424,6 +425,22 @@ func (s ChangeConfigurationConf) Validate() error {
 // No fields are defined.
 type ClearCacheReq struct{}
 
+func (s *ClearCacheReq) UnmarshalJSON(data []byte) error {
+	type Alias ClearCacheReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = ClearCacheReq(a)
+	return s.Validate()
+}
+
+func (s ClearCacheReq) Validate() error {
+	return nil
+}
+
 // ClearCacheConf (6.12)
 //
 // This contains the field definition of the ClearCache.conf PDU sent by the Charge Point to the Central System in
@@ -526,6 +543,423 @@ func (s *ClearChargingProfileConf) UnmarshalJSON(data []byte) error {
 func (s ClearChargingProfileConf) Validate() error {
 	if s.Status == "" {
 		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "status", "required field is missing")
+	}
+
+	return nil
+}
+
+// DataTransferReq (6.15)
+//
+// This contains the field definition of the DataTransfer.req PDU sent either by the Central System to the Charge
+// Point or vice versa. See also Data Transfer
+type DataTransferReq struct {
+	// Required. This identifies the Vendor specific implementation
+	VendorID CiString255Type `json:"vendorId"`
+	// Optional. Additional identification field
+	MessageID *CiString50Type `json:"messageId,omitempty"`
+	// Optional. Data without specified length or format.
+	Data *string `json:"data,omitempty"`
+}
+
+func (s *DataTransferReq) UnmarshalJSON(data []byte) error {
+	type Alias DataTransferReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = DataTransferReq(a)
+	return s.Validate()
+}
+
+func (s DataTransferReq) Validate() error {
+	if s.VendorID == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "vendorId", "required field is missing")
+	}
+
+	if err := s.VendorID.Validate(); err != nil {
+		return ocpp.WrapField("vendorId", err)
+	}
+
+	if s.MessageID != nil {
+		if err := s.MessageID.Validate(); err != nil {
+			return ocpp.WrapField("messageId", err)
+		}
+	}
+
+	return nil
+}
+
+// DataTransferConf (6.16)
+//
+// This contains the field definition of the DataTransfer.conf PDU sent by the Charge Point to the Central System or
+// vice versa in response to a DataTransfer.req PDU. See also Data Transfer
+type DataTransferConf struct {
+	// Required. This indicates the success or failure of the data transfer.
+	Status DataTransferStatus `json:"status"`
+	// Optional. Data in response to request.
+	Data *string `json:"data,omitempty"`
+}
+
+func (s *DataTransferConf) UnmarshalJSON(data []byte) error {
+	type Alias DataTransferConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = DataTransferConf(a)
+	return s.Validate()
+}
+
+func (s DataTransferConf) Validate() error {
+	if s.Status == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "status", "required field is missing")
+	}
+
+	return nil
+}
+
+// DiagnosticsStatusNotificationReq (6.17)
+//
+// This contains the field definition of the DiagnosticsStatusNotification.req PDU sent by the Charge Point to the
+// Central System. See also Diagnostics Status Notification
+type DiagnosticsStatusNotificationReq struct {
+	// Required. This contains the status of the diagnostics upload.
+	Status DiagnosticsStatus `json:"status"`
+}
+
+func (s *DiagnosticsStatusNotificationReq) UnmarshalJSON(data []byte) error {
+	type Alias DiagnosticsStatusNotificationReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = DiagnosticsStatusNotificationReq(a)
+	return s.Validate()
+}
+
+func (s DiagnosticsStatusNotificationReq) Validate() error {
+	if s.Status == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "status", "required field is missing")
+	}
+
+	return nil
+}
+
+// DiagnosticsStatusNotificationConf (6.18)
+//
+// This contains the field definition of the DiagnosticsStatusNotification.conf PDU sent by the Central System to the
+// Charge Point in response to a DiagnosticsStatusNotification.req PDU. See also Diagnostics Status Notification
+// No fields are defined.
+type DiagnosticsStatusNotificationConf struct{}
+
+func (s *DiagnosticsStatusNotificationConf) UnmarshalJSON(data []byte) error {
+	type Alias DiagnosticsStatusNotificationConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = DiagnosticsStatusNotificationConf(a)
+	return s.Validate()
+}
+
+func (s DiagnosticsStatusNotificationConf) Validate() error {
+	return nil
+}
+
+// FirmwareStatusNotificationReq (6.19)
+//
+// This contains the field definition of the FirmwareStatusNotification.req PDU sent by the Charge Point to the
+// Central System. See also Firmware Status Notification
+type FirmwareStatusNotificationReq struct {
+	// Required. This contains the progress status of the firmware installation.
+	Status FirmwareStatus `json:"status"`
+}
+
+func (s *FirmwareStatusNotificationReq) UnmarshalJSON(data []byte) error {
+	type Alias FirmwareStatusNotificationReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = FirmwareStatusNotificationReq(a)
+	return s.Validate()
+}
+
+func (s FirmwareStatusNotificationReq) Validate() error {
+	if s.Status == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "status", "required field is missing")
+	}
+
+	return nil
+}
+
+// FirmwareStatusNotificationConf (6.20)
+//
+// This contains the field definition of the FirmwareStatusNotification.conf PDU sent by the Central System to the
+// Charge Point in response to a FirmwareStatusNotification.req PDU. See also Firmware Status Notification
+// No fields are defined.
+type FirmwareStatusNotificationConf struct{}
+
+func (s *FirmwareStatusNotificationConf) UnmarshalJSON(data []byte) error {
+	type Alias FirmwareStatusNotificationConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = FirmwareStatusNotificationConf(a)
+	return s.Validate()
+}
+
+func (s FirmwareStatusNotificationConf) Validate() error {
+	return nil
+}
+
+// GetCompositeScheduleReq (6.21)
+//
+// This contains the field definition of the GetCompositeSchedule.req PDU sent by the Central System to the
+// Charge Point. See also Get Composite Schedule
+type GetCompositeScheduleReq struct {
+	// Required. The ID of the Connector for which the schedule is
+	// requested. When ConnectorId=0, the Charge Point will calculate
+	// the expected consumption for the grid connection.
+	ConnectorID int32 `json:"connectorId"`
+	// Required. Time in seconds. length of requested schedule
+	Duration int32 `json:"duration"`
+	// Optional. Can be used to force a power or current profile
+	ChargingRateUnit *ChargingRateUnitType `json:"chargingRateUnit,omitempty"`
+}
+
+func (s *GetCompositeScheduleReq) UnmarshalJSON(data []byte) error {
+	type Alias GetCompositeScheduleReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = GetCompositeScheduleReq(a)
+	return s.Validate()
+}
+
+func (s GetCompositeScheduleReq) Validate() error {
+	if s.ConnectorID < 0 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "connectorId", "must be >= 0")
+	}
+
+	if s.Duration < 1 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "duration", "must be > 0")
+	}
+
+	return nil
+}
+
+// GetCompositeScheduleConf (6.22)
+//
+// This contains the field definition of the GetCompositeSchedule.conf PDU sent by the Charge Point to the Central
+// System in response to a GetCompositeSchedule.req PDU. See also Get Composite Schedule
+type GetCompositeScheduleConf struct {
+	// Required. Status of the request. The Charge Point will indicate if it
+	// was able to process the request
+	Status GetCompositeScheduleStatus `json:"status"`
+	// Optional. The charging schedule contained in this notification
+	// applies to a Connector.
+	ConnectorID *int32 `json:"connectorId,omitempty"`
+	// Optional. Time. Periods contained in the charging profile are
+	// relative to this point in time.
+	// If status is "Rejected", this field may be absent.
+	ScheduleStart *time.Time `json:"scheduleStart,omitempty"`
+	// Optional. Planned Composite Charging Schedule, the energy
+	// consumption over time. Always relative to ScheduleStart.
+	// If status is "Rejected", this field may be absent.
+	ChargingSchedule *ChargingSchedule `json:"chargingSchedule,omitempty"`
+}
+
+func (s *GetCompositeScheduleConf) UnmarshalJSON(data []byte) error {
+	type Alias GetCompositeScheduleConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = GetCompositeScheduleConf(a)
+	return s.Validate()
+}
+
+func (s GetCompositeScheduleConf) Validate() error {
+	if s.Status == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "status", "required field is missing")
+	}
+
+	if s.ConnectorID != nil && *s.ConnectorID < 1 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "connectorId", "must be > 0")
+	}
+
+	return nil
+}
+
+// GetConfigurationReq (6.23)
+//
+// This contains the field definition of the GetConfiguration.req PDU sent by the Central System to the Charge
+// Point. See also Get Configuration
+type GetConfigurationReq struct {
+	// Optional. List of keys for which the configuration value is requested.
+	Key []CiString50Type `json:"key,omitempty"`
+}
+
+func (s *GetConfigurationReq) UnmarshalJSON(data []byte) error {
+	type Alias GetConfigurationReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = GetConfigurationReq(a)
+	return s.Validate()
+}
+
+func (s GetConfigurationReq) Validate() error {
+	for i, p := range s.Key {
+		if err := p.Validate(); err != nil {
+			return ocpp.WrapField(fmt.Sprintf("key[%d]", i), err)
+		}
+	}
+
+	return nil
+}
+
+// GetConfigurationConf (6.24)
+//
+// This contains the field definition of the GetConfiguration.conf PDU sent by the Charge Point to the Central
+// System in response to a GetConfiguration.req. See also Get Configuration
+type GetConfigurationConf struct {
+	// Optional. List of requested or known keys
+	ConfigurationKey []KeyValue `json:"configurationKey,omitempty"`
+	// Optional. Requested keys that are unknown
+	UnknownKey []CiString50Type `json:"unknownKey,omitempty"`
+}
+
+func (s *GetConfigurationConf) UnmarshalJSON(data []byte) error {
+	type Alias GetConfigurationConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = GetConfigurationConf(a)
+	return s.Validate()
+}
+
+func (s GetConfigurationConf) Validate() error {
+	for i, p := range s.ConfigurationKey {
+		if err := p.Validate(); err != nil {
+			return ocpp.WrapField(fmt.Sprintf("configurationKey[%d]", i), err)
+		}
+	}
+
+	for i, p := range s.UnknownKey {
+		if err := p.Validate(); err != nil {
+			return ocpp.WrapField(fmt.Sprintf("unknownKey[%d]", i), err)
+		}
+	}
+
+	return nil
+}
+
+// GetDiagnosticsReq (6.25)
+//
+// This contains the field definition of the GetDiagnostics.req PDU sent by the Central System to the Charge Point.
+// See also Get Diagnostics
+type GetDiagnosticsReq struct {
+	// Required. This contains the location (directory) where the diagnostics file shall
+	// be uploaded to.
+	Location string `json:"location"`
+	// Optional. This specifies how many times Charge Point must try to upload the
+	// diagnostics before giving up. If this field is not present, it is left to Charge Point
+	// to decide how many times it wants to retry.
+	Retries *int32 `json:"retries,omitempty"`
+	// Optional. The interval in seconds after which a retry may be attempted. If this
+	// field is not present, it is left to Charge Point to decide how long to wait between
+	// attempts.
+	RetryInterval *int32 `json:"retryInterval,omitempty"`
+	// Optional. This contains the date and time of the oldest logging information to
+	// include in the diagnostics.
+	StartTime *time.Time `json:"startTime,omitempty"`
+	// Optional. This contains the date and time of the latest logging information to
+	// include in the diagnostics.
+	StopTime *time.Time `json:"stopTime,omitempty"`
+}
+
+func (s *GetDiagnosticsReq) UnmarshalJSON(data []byte) error {
+	type Alias GetDiagnosticsReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = GetDiagnosticsReq(a)
+	return s.Validate()
+}
+
+func (s GetDiagnosticsReq) Validate() error {
+	if s.Location == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "location", "required field is missing")
+	}
+
+	if s.Retries != nil && *s.Retries < 0 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "retries", "must be >= 0")
+	}
+
+	if s.RetryInterval != nil && *s.RetryInterval < 1 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "retryInterval", "must be >= 1")
+	}
+
+	return nil
+}
+
+// GetDiagnosticsConf (6.26)
+//
+// This contains the field definition of the GetDiagnostics.conf PDU sent by the Charge Point to the Central System
+// in response to a GetDiagnostics.req PDU. See also Get Diagnostics
+type GetDiagnosticsConf struct {
+	// Optional. This contains the name of the file with diagnostic information that will
+	// be uploaded. This field is not present when no diagnostic information is
+	// available.
+	FileName *CiString255Type `json:"fileName,omitempty"`
+}
+
+func (s *GetDiagnosticsConf) UnmarshalJSON(data []byte) error {
+	type Alias GetDiagnosticsConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = GetDiagnosticsConf(a)
+	return s.Validate()
+}
+
+func (s GetDiagnosticsConf) Validate() error {
+	if s.FileName != nil {
+		if err := s.FileName.Validate(); err != nil {
+			return ocpp.WrapField("fileName", err)
+		}
 	}
 
 	return nil
