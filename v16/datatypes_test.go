@@ -742,7 +742,7 @@ func TestChargingScheduleUnmarshalJSON(t *testing.T) {
 		{
 			name:    "rejects first startPeriod not zero",
 			input:   `{"chargingRateUnit":"W","chargingSchedulePeriod":[{"startPeriod":60,"limit":8.1}]}`,
-			wantErr: ocpp.ErrOccurenceConstraintViolation,
+			wantErr: ocpp.ErrPropertyConstraintViolation,
 		},
 		{
 			name:    "rejects duration of zero",
@@ -826,7 +826,7 @@ func TestChargingScheduleValidate(t *testing.T) {
 		{
 			name:    "rejects first startPeriod not zero",
 			input:   ChargingSchedule{ChargingRateUnit: ChargingRateUnitTypeW, ChargingSchedulePeriod: []ChargingSchedulePeriod{{StartPeriod: 60, Limit: 8.1}}},
-			wantErr: ocpp.ErrOccurenceConstraintViolation,
+			wantErr: ocpp.ErrPropertyConstraintViolation,
 		},
 		{
 			name:    "rejects duration less than 1",
@@ -1699,7 +1699,7 @@ func TestIDTagInfoValidate(t *testing.T) {
 				Status:      AuthorizationStatusAccepted,
 				ParentIDTag: &emptyParentIDTag,
 			},
-			wantErr: ocpp.ErrOccurenceConstraintViolation,
+			wantErr: ocpp.ErrPropertyConstraintViolation,
 		},
 		{
 			name: "rejects parentIdTag with invalid characters",

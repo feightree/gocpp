@@ -627,7 +627,7 @@ func (s ChargingSchedule) Validate() error {
 
 	if s.ChargingSchedulePeriod[0].StartPeriod != 0 {
 		return ocpp.NewError(
-			ocpp.ErrOccurenceConstraintViolation,
+			ocpp.ErrPropertyConstraintViolation,
 			"chargingSchedulePeriod[0]",
 			"startPeriod must be 0",
 		)
@@ -1250,7 +1250,7 @@ func (s IDTagInfo) Validate() error {
 
 	if s.ParentIDTag != nil {
 		if *s.ParentIDTag == "" {
-			return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "parentIdTag", "should not be empty")
+			return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "parentIdTag", "should not be empty")
 		}
 
 		if err := s.ParentIDTag.Validate(); err != nil {

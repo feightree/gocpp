@@ -126,7 +126,7 @@ func TestAuthorizeConfValidate(t *testing.T) {
 		{
 			name:    "rejects empty parentIdTag",
 			input:   AuthorizeConf{IDTagInfo: IDTagInfo{Status: AuthorizationStatusAccepted, ParentIDTag: ptr(IDToken(""))}},
-			wantErr: ocpp.ErrOccurenceConstraintViolation,
+			wantErr: ocpp.ErrPropertyConstraintViolation,
 		},
 		{
 			name:    "rejects oversized parentIdTag",
@@ -1746,6 +1746,89 @@ func TestGetDiagnosticsConfValidate(t *testing.T) {
 			name:    "rejects non-printable ASCII in fileName",
 			input:   GetDiagnosticsConf{FileName: ptr(CiString255Type("café"))},
 			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestGetLocalListVersionReqUnmarshal(t *testing.T) {
+	t.Run("valid input", func(t *testing.T) {
+		var v GetLocalListVersionReq
+		err := json.Unmarshal([]byte(`{}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestGetLocalListVersionReqValidate(t *testing.T) {
+	t.Run("accepts valid input", func(t *testing.T) {
+		err := GetLocalListVersionReq{}.Validate()
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestGetLocalListVersionConfUnmarshal(t *testing.T) {
+	t.Run("valid input", func(t *testing.T) {
+		var v GetLocalListVersionConf
+		err := json.Unmarshal([]byte(`{"listVersion":1}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.ListVersion != 1 {
+			t.Errorf("got %d, want %d", v.ListVersion, 1)
+		}
+	})
+
+	t.Run("valid input with sentinel listVersion", func(t *testing.T) {
+		var v GetLocalListVersionConf
+		err := json.Unmarshal([]byte(`{"listVersion":-1}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.ListVersion != -1 {
+			t.Errorf("got %d, want %d", v.ListVersion, -1)
+		}
+	})
+}
+
+func TestGetLocalListVersionConfValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   GetLocalListVersionConf
+		wantErr error
+	}{
+		{
+			name:    "accepts positive listVersion",
+			input:   GetLocalListVersionConf{ListVersion: 1},
+			wantErr: nil,
+		},
+		{
+			name:    "accepts zero listVersion",
+			input:   GetLocalListVersionConf{ListVersion: 0},
+			wantErr: nil,
+		},
+		{
+			name:    "accepts sentinel listVersion of -1",
+			input:   GetLocalListVersionConf{ListVersion: -1},
+			wantErr: nil,
 		},
 	}
 

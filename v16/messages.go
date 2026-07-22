@@ -964,3 +964,52 @@ func (s GetDiagnosticsConf) Validate() error {
 
 	return nil
 }
+
+// GetLocalListVersionReq (6.27)
+//
+// This contains the field definition of the GetLocalListVersion.req PDU sent by the Central System to the Charge
+// Point. See also Get Local List Version
+//
+// No fields are defined.
+type GetLocalListVersionReq struct{}
+
+func (s *GetLocalListVersionReq) UnmarshalJSON(data []byte) error {
+	type Alias GetLocalListVersionReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = GetLocalListVersionReq(a)
+	return s.Validate()
+}
+
+func (s GetLocalListVersionReq) Validate() error {
+	return nil
+}
+
+// GetLocalListVersionConf (6.28)
+//
+// This contains the field definition of the GetLocalListVersion.conf PDU sent by the Charge Point to Central System
+// in response to a GetLocalListVersion.req PDU. See also Get Local List Version
+type GetLocalListVersionConf struct {
+	// Required. This contains the current version number of the local authorization list in the Charge Point.
+	ListVersion int32 `json:"listVersion"`
+}
+
+func (s *GetLocalListVersionConf) UnmarshalJSON(data []byte) error {
+	type Alias GetLocalListVersionConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = GetLocalListVersionConf(a)
+	return s.Validate()
+}
+
+func (s GetLocalListVersionConf) Validate() error {
+	return nil
+}
