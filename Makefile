@@ -20,7 +20,6 @@ audit:
 	go mod verify
 	test -z "$(shell gofmt -l .)"
 	go vet ./...
-	go run honnef.co/go/tools/cmd/staticcheck@latest -checks=all,-ST1000,-ST1020,-ST1021,-U1000 ./...
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 ## lint: run golangci-lint
@@ -54,9 +53,13 @@ update:
 # DEVELOPMENT
 # ==================================================================================== #
 
+## generate: run all code generators
+.PHONY: generate
+generate:
+	go generate ./...
+
 ## tidy: tidy modfiles and format .go files
 .PHONY: tidy
 tidy:
 	go mod tidy -v
-	go fix ./...
 	go fmt ./...

@@ -1,12 +1,16 @@
-package ocpp16
+package v16
 
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
+
+	ocpp "github.com/feightree/gocpp/ocpp"
 )
 
-// 7.1. AuthorizationData
+// AuthorizationData (7.1)
 //
 // Elements that constitute an entry of a Local Authorization List update.
 type AuthorizationData struct {
@@ -20,7 +24,37 @@ type AuthorizationData struct {
 	IDTagInfo *IDTagInfo `json:"idTagInfo,omitempty"`
 }
 
-// 7.2. AuthorizationStatus
+func (s *AuthorizationData) UnmarshalJSON(data []byte) error {
+	type Alias AuthorizationData
+	var raw Alias
+
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	*s = AuthorizationData(raw)
+	return s.Validate()
+}
+
+func (s AuthorizationData) Validate() error {
+	if s.IDTag == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "idTag", "required field is missing")
+	}
+
+	if err := s.IDTag.Validate(); err != nil {
+		return ocpp.WrapField("idTag", err)
+	}
+
+	if s.IDTagInfo != nil {
+		if err := s.IDTagInfo.Validate(); err != nil {
+			return ocpp.WrapField("idTagInfo", err)
+		}
+	}
+
+	return nil
+}
+
+// AuthorizationStatus (7.2)
 //
 // Status in a response to an Authorize.req.
 type AuthorizationStatus string
@@ -43,7 +77,7 @@ func (s *AuthorizationStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch AuthorizationStatus(raw) {
@@ -56,10 +90,14 @@ func (s *AuthorizationStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: AuthorizationStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid AuthorizationStatus", raw),
+	)
 }
 
-// 7.3. AvailabilityStatus
+// AvailabilityStatus (7.3)
 //
 // Status returned in response to ChangeAvailability.req.
 type AvailabilityStatus string
@@ -77,7 +115,7 @@ func (s *AvailabilityStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch AvailabilityStatus(raw) {
@@ -88,10 +126,14 @@ func (s *AvailabilityStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: AvailabilityStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid AvailabilityStatus", raw),
+	)
 }
 
-// 7.4. AvailabilityType
+// AvailabilityType (7.4)
 //
 // Requested availability change in ChangeAvailability.req.
 type AvailabilityType string
@@ -107,7 +149,7 @@ func (s *AvailabilityType) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch AvailabilityType(raw) {
@@ -117,10 +159,14 @@ func (s *AvailabilityType) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: AvailabilityType: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid AvailabilityType", raw),
+	)
 }
 
-// 7.5. CancelReservationStatus
+// CancelReservationStatus (7.5)
 //
 // Status in CancelReservation.conf.
 type CancelReservationStatus string
@@ -136,7 +182,7 @@ func (s *CancelReservationStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch CancelReservationStatus(raw) {
@@ -146,10 +192,14 @@ func (s *CancelReservationStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: CancelReservationStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid CancelReservationStatus", raw),
+	)
 }
 
-// 7.6. ChargePointErrorCode
+// ChargePointErrorCode (7.6)
 //
 // Charge Point status reported in StatusNotification.req.
 type ChargePointErrorCode string
@@ -194,7 +244,7 @@ func (s *ChargePointErrorCode) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch ChargePointErrorCode(raw) {
@@ -218,10 +268,14 @@ func (s *ChargePointErrorCode) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: ChargePointErrorCode: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid ChargePointErrorCode", raw),
+	)
 }
 
-// 7.7. ChargePointStatus
+// ChargePointStatus (7.7)
 //
 // Status reported in StatusNotification.req. A status can be reported for the Charge Point main controller
 // (connectorId = 0) or for a specific connector. Status for the Charge Point main controller is a subset of the
@@ -268,7 +322,7 @@ func (s *ChargePointStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch ChargePointStatus(raw) {
@@ -285,10 +339,14 @@ func (s *ChargePointStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: ChargePointStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid ChargePointStatus", raw),
+	)
 }
 
-// 7.8. ChargingProfile
+// ChargingProfile (7.8)
 //
 // A ChargingProfile consists of a ChargingSchedule, describing the amount of power or current that can be
 // delivered per time interval.
@@ -321,7 +379,47 @@ type ChargingProfile struct {
 	ChargingSchedule ChargingSchedule `json:"chargingSchedule"`
 }
 
-// 7.9. ChargingProfileKindType
+func (s *ChargingProfile) UnmarshalJSON(data []byte) error {
+	type Alias ChargingProfile
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = ChargingProfile(a)
+	return s.Validate()
+}
+
+func (s ChargingProfile) Validate() error {
+	if s.StackLevel < 0 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "stackLevel", "must be >= 0")
+	}
+
+	if s.ChargingProfilePurpose == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "chargingProfilePurpose", "required field is missing")
+	}
+
+	if s.ChargingProfileKind == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "chargingProfileKind", "required field is missing")
+	}
+
+	if s.RecurrencyKind != nil && *s.RecurrencyKind == "" {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "recurrencyKind", "should not be empty")
+	}
+
+	if s.TransactionID != nil && s.ChargingProfilePurpose != ChargingProfilePurposeTypeTxProfile {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "transactionId", "is only valid for TxProfile")
+	}
+
+	if err := s.ChargingSchedule.Validate(); err != nil {
+		return ocpp.WrapField("chargingSchedule", err)
+	}
+
+	return nil
+}
+
+// ChargingProfileKindType (7.9)
 //
 // Kind of charging profile, as used in: ChargingProfile.
 type ChargingProfileKindType string
@@ -340,7 +438,7 @@ func (s *ChargingProfileKindType) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch ChargingProfileKindType(raw) {
@@ -351,10 +449,14 @@ func (s *ChargingProfileKindType) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: ChargingProfileKindType: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid ChargingProfileKindType", raw),
+	)
 }
 
-// 7.10. ChargingProfilePurposeType
+// ChargingProfilePurposeType (7.10)
 //
 // Purpose of the charging profile, as used in: ChargingProfile.
 type ChargingProfilePurposeType string
@@ -376,7 +478,7 @@ func (s *ChargingProfilePurposeType) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch ChargingProfilePurposeType(raw) {
@@ -387,10 +489,14 @@ func (s *ChargingProfilePurposeType) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: ChargingProfilePurposeType: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid ChargingProfilePurposeType", raw),
+	)
 }
 
-// 7.11. ChargingProfileStatus
+// ChargingProfileStatus (7.11)
 //
 // Status returned in response to SetChargingProfile.req.
 type ChargingProfileStatus string
@@ -408,7 +514,7 @@ func (s *ChargingProfileStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch ChargingProfileStatus(raw) {
@@ -419,10 +525,14 @@ func (s *ChargingProfileStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: ChargingProfileStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid ChargingProfileStatus", raw),
+	)
 }
 
-// 7.12. ChargingRateUnitType
+// ChargingRateUnitType (7.12)
 //
 // Unit in which a charging schedule is defined, as used in: GetCompositeSchedule.req and ChargingSchedule
 type ChargingRateUnitType string
@@ -446,7 +556,7 @@ func (s *ChargingRateUnitType) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch ChargingRateUnitType(raw) {
@@ -456,10 +566,14 @@ func (s *ChargingRateUnitType) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: ChargingRateUnitType: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid ChargingRateUnitType", raw),
+	)
 }
 
-// 7.13. ChargingSchedule
+// ChargingSchedule (7.13)
 //
 // Charging schedule structure defines a list of charging periods, as used in: GetCompositeSchedule.conf and
 // ChargingProfile.
@@ -474,7 +588,7 @@ type ChargingSchedule struct {
 	// Required. The unit of measure Limit is expressed in.
 	ChargingRateUnit ChargingRateUnitType `json:"chargingRateUnit"`
 	// Required. List of ChargingSchedulePeriod elements defining
-	// maximum power or current usage over time. The startSchedule of
+	// maximum power or current usage over time. The startPeriod of
 	// the first ChargingSchedulePeriod SHALL always be 0.
 	ChargingSchedulePeriod []ChargingSchedulePeriod `json:"chargingSchedulePeriod"`
 	// Optional. Minimum charging rate supported by the electric
@@ -486,11 +600,64 @@ type ChargingSchedule struct {
 	MinChargingRate *float64 `json:"minChargingRate,omitempty"`
 }
 
-// 7.14. ChargingSchedulePeriod
+func (s *ChargingSchedule) UnmarshalJSON(data []byte) error {
+	type Alias ChargingSchedule
+	var raw Alias
+
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	*s = ChargingSchedule(raw)
+	return s.Validate()
+}
+
+func (s ChargingSchedule) Validate() error {
+	if s.Duration != nil && *s.Duration < 1 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "duration", "must be > 0")
+	}
+
+	if s.ChargingRateUnit == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "chargingRateUnit", "required field is missing")
+	}
+
+	if len(s.ChargingSchedulePeriod) == 0 {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "chargingSchedulePeriod", "must not be an empty array")
+	}
+
+	if s.ChargingSchedulePeriod[0].StartPeriod != 0 {
+		return ocpp.NewError(
+			ocpp.ErrPropertyConstraintViolation,
+			"chargingSchedulePeriod[0]",
+			"startPeriod must be 0",
+		)
+	}
+
+	for i, p := range s.ChargingSchedulePeriod {
+		if err := p.Validate(); err != nil {
+			return ocpp.WrapField(fmt.Sprintf("chargingSchedulePeriod[%d]", i), err)
+		}
+	}
+
+	if s.MinChargingRate != nil {
+		if *s.MinChargingRate < 0 {
+			return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "minChargingRate", "must be >= 0")
+		}
+
+		f := strconv.FormatFloat(*s.MinChargingRate, 'f', -1, 64)
+		if strings.IndexByte(f, '.') != -1 && len(f)-strings.IndexByte(f, '.')-1 > 1 {
+			return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "minChargingRate", "must have at most one digit fraction")
+		}
+	}
+
+	return nil
+}
+
+// ChargingSchedulePeriod (7.14)
 //
 // Charging schedule period structure defines a time period in a charging schedule, as used in: ChargingSchedule.
 type ChargingSchedulePeriod struct {
-	// 	Required. Start of the period, in seconds from the start of schedule. The value of
+	// Required. Start of the period, in seconds from the start of schedule. The value of
 	// StartPeriod also defines the stop time of the previous period.
 	StartPeriod int32 `json:"startPeriod"`
 	// Required. Charging rate limit during the schedule period, in the applicable
@@ -503,23 +670,88 @@ type ChargingSchedulePeriod struct {
 	NumberPhases *int32 `json:"numberPhases,omitempty"`
 }
 
-// 7.15. CiString20Type
-//
-// Generic used case insensitive string of 20 characters.
-type CiString20Type string
+func (s *ChargingSchedulePeriod) UnmarshalJSON(data []byte) error {
+	type Alias ChargingSchedulePeriod
+	var raw Alias
 
-func NewCiString20Type(s string) (CiString20Type, error) {
-	if len(s) > 20 {
-		return "", ErrStringLength20
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
 	}
 
-	for _, r := range s {
-		if r < 0x21 || r > 0x7E {
-			return "", ErrNonVisibleASCII
+	*s = ChargingSchedulePeriod(raw)
+	return s.Validate()
+}
+
+func (s ChargingSchedulePeriod) Validate() error {
+	if s.StartPeriod < 0 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "startPeriod", "must be >= 0")
+	}
+
+	if s.Limit < 0 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "limit", "must be >= 0")
+	}
+
+	f := strconv.FormatFloat(s.Limit, 'f', -1, 64)
+	if strings.IndexByte(f, '.') != -1 && len(f)-strings.IndexByte(f, '.')-1 > 1 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "limit", "must have at most one digit fraction")
+	}
+
+	if s.NumberPhases != nil {
+		switch *s.NumberPhases {
+		case 1, 2, 3:
+		default:
+			return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "numberPhases", "must be 1, 2 or 3")
 		}
 	}
 
-	return CiString20Type(s), nil
+	return nil
+}
+
+// validateCiString checks that s is no longer than maxLen and contains only
+// printable ASCII characters (0x20-0x7E), as required by the OCPP 1.6 CiString*
+// types.
+func validateCiString(s string, maxLen int, typeName string) error {
+	if len(s) > maxLen {
+		return ocpp.NewError(
+			ocpp.ErrPropertyConstraintViolation,
+			"",
+			fmt.Sprintf("%s exceeds max length of %d", typeName, maxLen),
+		)
+	}
+
+	for _, r := range s {
+		if r < 0x20 || r > 0x7E {
+			return ocpp.NewError(
+				ocpp.ErrPropertyConstraintViolation,
+				"",
+				fmt.Sprintf("%s contains non-printable ASCII characters", typeName),
+			)
+		}
+	}
+
+	return nil
+}
+
+// CiString20Type (7.15)
+//
+// Generic case insensitive string of 20 characters.
+type CiString20Type string
+
+func NewCiString20Type(s string) (CiString20Type, error) {
+	c := CiString20Type(s)
+	if err := c.Validate(); err != nil {
+		return "", err
+	}
+
+	return c, nil
+}
+
+func (s CiString20Type) Validate() error {
+	return validateCiString(string(s), 20, "CiString20Type")
+}
+
+func (s CiString20Type) Equals(other string) bool {
+	return strings.EqualFold(string(s), other)
 }
 
 func (s CiString20Type) String() string {
@@ -530,35 +762,39 @@ func (s *CiString20Type) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
-	str, err := NewCiString20Type(raw)
+	c, err := NewCiString20Type(raw)
+
 	if err != nil {
 		return err
 	}
 
-	*s = str
+	*s = c
 	return nil
 }
 
-// 7.16. CiString25Type
+// CiString25Type (7.16)
 //
-// Generic used case insensitive string of 25 characters.
+// Generic case insensitive string of 25 characters.
 type CiString25Type string
 
 func NewCiString25Type(s string) (CiString25Type, error) {
-	if len(s) > 25 {
-		return "", ErrStringLength25
+	c := CiString25Type(s)
+	if err := c.Validate(); err != nil {
+		return "", err
 	}
 
-	for _, r := range s {
-		if r < 0x21 || r > 0x7E {
-			return "", ErrNonVisibleASCII
-		}
-	}
+	return c, nil
+}
 
-	return CiString25Type(s), nil
+func (s CiString25Type) Validate() error {
+	return validateCiString(string(s), 25, "CiString25Type")
+}
+
+func (s CiString25Type) Equals(other string) bool {
+	return strings.EqualFold(string(s), other)
 }
 
 func (s CiString25Type) String() string {
@@ -569,35 +805,39 @@ func (s *CiString25Type) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
-	str, err := NewCiString25Type(raw)
+	c, err := NewCiString25Type(raw)
+
 	if err != nil {
 		return err
 	}
 
-	*s = str
+	*s = c
 	return nil
 }
 
-// 7.17. CiString50Type
+// CiString50Type (7.17)
 //
-// Generic used case insensitive string of 50 characters.
+// Generic case insensitive string of 50 characters.
 type CiString50Type string
 
 func NewCiString50Type(s string) (CiString50Type, error) {
-	if len(s) > 50 {
-		return "", ErrStringLength50
+	c := CiString50Type(s)
+	if err := c.Validate(); err != nil {
+		return "", err
 	}
 
-	for _, r := range s {
-		if r < 0x21 || r > 0x7E {
-			return "", ErrNonVisibleASCII
-		}
-	}
+	return c, nil
+}
 
-	return CiString50Type(s), nil
+func (s CiString50Type) Validate() error {
+	return validateCiString(string(s), 50, "CiString50Type")
+}
+
+func (s CiString50Type) Equals(other string) bool {
+	return strings.EqualFold(string(s), other)
 }
 
 func (s CiString50Type) String() string {
@@ -608,35 +848,39 @@ func (s *CiString50Type) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
-	str, err := NewCiString50Type(raw)
+	c, err := NewCiString50Type(raw)
+
 	if err != nil {
 		return err
 	}
 
-	*s = str
+	*s = c
 	return nil
 }
 
-// 7.18. CiString255Type
+// CiString255Type (7.18)
 //
-// Generic used case insensitive string of 255 characters.
+// Generic case insensitive string of 255 characters.
 type CiString255Type string
 
 func NewCiString255Type(s string) (CiString255Type, error) {
-	if len(s) > 255 {
-		return "", ErrStringLength255
+	c := CiString255Type(s)
+	if err := c.Validate(); err != nil {
+		return "", err
 	}
 
-	for _, r := range s {
-		if r < 0x21 || r > 0x7E {
-			return "", ErrNonVisibleASCII
-		}
-	}
+	return c, nil
+}
 
-	return CiString255Type(s), nil
+func (s CiString255Type) Validate() error {
+	return validateCiString(string(s), 255, "CiString255Type")
+}
+
+func (s CiString255Type) Equals(other string) bool {
+	return strings.EqualFold(string(s), other)
 }
 
 func (s CiString255Type) String() string {
@@ -647,35 +891,39 @@ func (s *CiString255Type) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
-	str, err := NewCiString255Type(raw)
+	c, err := NewCiString255Type(raw)
+
 	if err != nil {
 		return err
 	}
 
-	*s = str
+	*s = c
 	return nil
 }
 
-// 7.19. CiString500Type
+// CiString500Type (7.19)
 //
-// Generic used case insensitive string of 500 characters.
+// Generic case insensitive string of 500 characters.
 type CiString500Type string
 
 func NewCiString500Type(s string) (CiString500Type, error) {
-	if len(s) > 500 {
-		return "", ErrStringLength500
+	c := CiString500Type(s)
+	if err := c.Validate(); err != nil {
+		return "", err
 	}
 
-	for _, r := range s {
-		if r < 0x21 || r > 0x7E {
-			return "", ErrNonVisibleASCII
-		}
-	}
+	return c, nil
+}
 
-	return CiString500Type(s), nil
+func (s CiString500Type) Validate() error {
+	return validateCiString(string(s), 500, "CiString500Type")
+}
+
+func (s CiString500Type) Equals(other string) bool {
+	return strings.EqualFold(string(s), other)
 }
 
 func (s CiString500Type) String() string {
@@ -686,19 +934,20 @@ func (s *CiString500Type) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
-	str, err := NewCiString500Type(raw)
+	c, err := NewCiString500Type(raw)
+
 	if err != nil {
 		return err
 	}
 
-	*s = str
+	*s = c
 	return nil
 }
 
-// 7.20. ClearCacheStatus
+// ClearCacheStatus (7.20)
 //
 // Status returned in response to ClearCache.req.
 type ClearCacheStatus string
@@ -714,7 +963,7 @@ func (s *ClearCacheStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch ClearCacheStatus(raw) {
@@ -724,10 +973,14 @@ func (s *ClearCacheStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: ClearCacheStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid ClearCacheStatus", raw),
+	)
 }
 
-// 7.21. ClearChargingProfileStatus
+// ClearChargingProfileStatus (7.21)
 //
 // Status returned in response to ClearChargingProfile.req.
 type ClearChargingProfileStatus string
@@ -743,7 +996,7 @@ func (s *ClearChargingProfileStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch ClearChargingProfileStatus(raw) {
@@ -753,10 +1006,14 @@ func (s *ClearChargingProfileStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: ClearChargingProfileStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid ClearChargingProfileStatus", raw),
+	)
 }
 
-// 7.22. ConfigurationStatus
+// ConfigurationStatus (7.22)
 //
 // Status in ChangeConfiguration.conf.
 type ConfigurationStatus string
@@ -777,7 +1034,7 @@ func (s *ConfigurationStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch ConfigurationStatus(raw) {
@@ -789,10 +1046,14 @@ func (s *ConfigurationStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: ConfigurationStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid ConfigurationStatus", raw),
+	)
 }
 
-// 7.23. DataTransferStatus
+// DataTransferStatus (7.23)
 //
 // Status in DataTransfer.conf.
 type DataTransferStatus string
@@ -812,7 +1073,7 @@ func (s *DataTransferStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch DataTransferStatus(raw) {
@@ -824,10 +1085,14 @@ func (s *DataTransferStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: DataTransferStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid DataTransferStatus", raw),
+	)
 }
 
-// 7.24. DiagnosticsStatus
+// DiagnosticsStatus (7.24)
 //
 // Status in DiagnosticsStatusNotification.req.
 type DiagnosticsStatus string
@@ -848,7 +1113,7 @@ func (s *DiagnosticsStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch DiagnosticsStatus(raw) {
@@ -860,10 +1125,14 @@ func (s *DiagnosticsStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: DiagnosticsStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid DiagnosticsStatus", raw),
+	)
 }
 
-// 7.25. FirmwareStatus
+// FirmwareStatus (7.25)
 //
 // Status of a firmware download as reported in FirmwareStatusNotification.req.
 type FirmwareStatus string
@@ -890,7 +1159,7 @@ func (s *FirmwareStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch FirmwareStatus(raw) {
@@ -905,10 +1174,14 @@ func (s *FirmwareStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: FirmwareStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid FirmwareStatus", raw),
+	)
 }
 
-// 7.26. GetCompositeScheduleStatus
+// GetCompositeScheduleStatus (7.26)
 //
 // Status returned in response to GetCompositeSchedule.req.
 type GetCompositeScheduleStatus string
@@ -924,7 +1197,7 @@ func (s *GetCompositeScheduleStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch GetCompositeScheduleStatus(raw) {
@@ -934,10 +1207,14 @@ func (s *GetCompositeScheduleStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: GetCompositeScheduleStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid GetCompositeScheduleStatus", raw),
+	)
 }
 
-// 7.27. IDTagInfo
+// IDTagInfo (7.27)
 //
 // Contains status information about an identifier. It is returned in Authorize, Start Transaction and Stop
 // Transaction responses.
@@ -954,17 +1231,47 @@ type IDTagInfo struct {
 	Status AuthorizationStatus `json:"status"`
 }
 
-// 7.28. IDToken
+func (s *IDTagInfo) UnmarshalJSON(data []byte) error {
+	type Alias IDTagInfo
+	var raw Alias
+
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	*s = IDTagInfo(raw)
+	return s.Validate()
+}
+
+func (s IDTagInfo) Validate() error {
+	if s.Status == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "status", "required field is missing")
+	}
+
+	if s.ParentIDTag != nil {
+		if *s.ParentIDTag == "" {
+			return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "parentIdTag", "should not be empty")
+		}
+
+		if err := s.ParentIDTag.Validate(); err != nil {
+			return ocpp.WrapField("parentIdTag", err)
+		}
+	}
+
+	return nil
+}
+
+// IDToken (7.28)
 //
 // Contains the identifier to use for authorization. It is a case insensitive string. In future releases this may become
 // a complex type to support multiple forms of identifiers.
 type IDToken = CiString20Type
 
-// 7.29. KeyValue
+// KeyValue (7.29)
 //
 // Contains information about a specific configuration key. It is returned in GetConfiguration.conf.
 type KeyValue struct {
-	// Required
+	// Required.
 	Key CiString50Type `json:"key"`
 	// Required. False if the value can be set with the ChangeConfiguration message.
 	Readonly bool `json:"readonly"`
@@ -972,7 +1279,37 @@ type KeyValue struct {
 	Value *CiString500Type `json:"value,omitempty"`
 }
 
-// 7.30. Location
+func (s *KeyValue) UnmarshalJSON(data []byte) error {
+	type Alias KeyValue
+	var raw Alias
+
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	*s = KeyValue(raw)
+	return s.Validate()
+}
+
+func (s KeyValue) Validate() error {
+	if s.Key == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "key", "required field is missing")
+	}
+
+	if err := s.Key.Validate(); err != nil {
+		return ocpp.WrapField("key", err)
+	}
+
+	if s.Value != nil {
+		if err := s.Value.Validate(); err != nil {
+			return ocpp.WrapField("value", err)
+		}
+	}
+
+	return nil
+}
+
+// Location (7.30)
 //
 // Allowable values of the optional "location" field of a value element in SampledValue.
 type Location string
@@ -994,7 +1331,7 @@ func (s *Location) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch Location(raw) {
@@ -1007,10 +1344,14 @@ func (s *Location) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: Location: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid Location", raw),
+	)
 }
 
-// 7.31. Measurand
+// Measurand (7.31)
 //
 // Allowable values of the optional "measurand" field of a Value element, as used in MeterValues.req and
 // StopTransaction.req messages. Default value of "measurand" is always "Energy.Active.Import.Register"
@@ -1080,7 +1421,7 @@ func (s *Measurand) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch Measurand(raw) {
@@ -1110,10 +1451,14 @@ func (s *Measurand) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: Measurand: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid Measurand", raw),
+	)
 }
 
-// 7.32. MessageTrigger
+// MessageTrigger (7.32)
 //
 // Type of request to be triggered in a TriggerMessage.req.
 type MessageTrigger string
@@ -1137,7 +1482,7 @@ func (s *MessageTrigger) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch MessageTrigger(raw) {
@@ -1151,10 +1496,14 @@ func (s *MessageTrigger) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: MessageTrigger: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid MessageTrigger", raw),
+	)
 }
 
-// 7.33. MeterValue
+// MeterValue (7.33)
 //
 // Collection of one or more sampled values in MeterValues.req and StopTransaction.req. All sampled values in a
 // MeterValue are sampled at the same point in time.
@@ -1165,7 +1514,37 @@ type MeterValue struct {
 	SampledValue []SampledValue `json:"sampledValue"`
 }
 
-// 7.34. Phase
+func (s *MeterValue) UnmarshalJSON(data []byte) error {
+	type Alias MeterValue
+	var raw Alias
+
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	*s = MeterValue(raw)
+	return s.Validate()
+}
+
+func (s MeterValue) Validate() error {
+	if s.Timestamp.IsZero() {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "timestamp", "required field is missing")
+	}
+
+	if len(s.SampledValue) == 0 {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "sampledValue", "must not be an empty array")
+	}
+
+	for i, v := range s.SampledValue {
+		if err := v.Validate(); err != nil {
+			return ocpp.WrapField(fmt.Sprintf("sampledValue[%d]", i), err)
+		}
+	}
+
+	return nil
+}
+
+// Phase (7.34)
 //
 // Phase as used in SampledValue. Phase specifies how a measured value is to be interpreted. Please note that not
 // all values of Phase are applicable to all Measurands.
@@ -1198,7 +1577,7 @@ func (s *Phase) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch Phase(raw) {
@@ -1216,10 +1595,14 @@ func (s *Phase) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: Phase: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid Phase", raw),
+	)
 }
 
-// 7.35. ReadingContext
+// ReadingContext (7.35)
 //
 // Values of the context field of a value in SampledValue.
 type ReadingContext string
@@ -1247,7 +1630,7 @@ func (s *ReadingContext) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch ReadingContext(raw) {
@@ -1263,10 +1646,14 @@ func (s *ReadingContext) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: ReadingContext: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid ReadingContext", raw),
+	)
 }
 
-// 7.36. Reason
+// Reason (7.36)
 //
 // Reason for stopping a transaction in StopTransaction.req.
 type Reason string
@@ -1302,7 +1689,7 @@ func (s *Reason) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch Reason(raw) {
@@ -1321,10 +1708,14 @@ func (s *Reason) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: Reason: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid Reason", raw),
+	)
 }
 
-// 7.37. RecurrencyKindType
+// RecurrencyKindType (7.37)
 //
 // Type of recurrence of a charging profile, as used in ChargingProfile.
 type RecurrencyKindType string
@@ -1340,7 +1731,7 @@ func (s *RecurrencyKindType) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch RecurrencyKindType(raw) {
@@ -1350,10 +1741,14 @@ func (s *RecurrencyKindType) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: RecurrencyKindType: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid RecurrencyKindType", raw),
+	)
 }
 
-// 7.38. RegistrationStatus
+// RegistrationStatus (7.38)
 //
 // Result of registration in response to BootNotification.req.
 type RegistrationStatus string
@@ -1372,7 +1767,7 @@ func (s *RegistrationStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch RegistrationStatus(raw) {
@@ -1383,10 +1778,14 @@ func (s *RegistrationStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: RegistrationStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid RegistrationStatus", raw),
+	)
 }
 
-// 7.39. RemoteStartStopStatus
+// RemoteStartStopStatus (7.39)
 //
 // The result of a RemoteStartTransaction.req or RemoteStopTransaction.req request.
 type RemoteStartStopStatus string
@@ -1402,7 +1801,7 @@ func (s *RemoteStartStopStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch RemoteStartStopStatus(raw) {
@@ -1412,10 +1811,14 @@ func (s *RemoteStartStopStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: RemoteStartStopStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid RemoteStartStopStatus", raw),
+	)
 }
 
-// 7.40. ReservationStatus
+// ReservationStatus (7.40)
 //
 // Status in ReserveNow.conf.
 type ReservationStatus string
@@ -1437,7 +1840,7 @@ func (s *ReservationStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch ReservationStatus(raw) {
@@ -1450,10 +1853,14 @@ func (s *ReservationStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: ReservationStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid ReservationStatus", raw),
+	)
 }
 
-// 7.41. ResetStatus
+// ResetStatus (7.41)
 //
 // Result of Reset.req.
 type ResetStatus string
@@ -1469,7 +1876,7 @@ func (s *ResetStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch ResetStatus(raw) {
@@ -1479,10 +1886,14 @@ func (s *ResetStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: ResetStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid ResetStatus", raw),
+	)
 }
 
-// 7.42. ResetType
+// ResetType (7.42)
 //
 // Type of reset requested by Reset.req.
 type ResetType string
@@ -1502,7 +1913,7 @@ func (s *ResetType) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch ResetType(raw) {
@@ -1512,10 +1923,14 @@ func (s *ResetType) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: ResetType: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid ResetType", raw),
+	)
 }
 
-// 7.43. SampledValue
+// SampledValue (7.43)
 //
 // Single sampled value in MeterValues. Each value can be accompanied by optional fields.
 type SampledValue struct {
@@ -1542,7 +1957,27 @@ type SampledValue struct {
 	Unit *UnitOfMeasure `json:"unit,omitempty"`
 }
 
-// 7.44. TriggerMessageStatus
+func (s *SampledValue) UnmarshalJSON(data []byte) error {
+	type Alias SampledValue
+	var raw Alias
+
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	*s = SampledValue(raw)
+	return s.Validate()
+}
+
+func (s SampledValue) Validate() error {
+	if s.Value == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "value", "required field is missing")
+	}
+
+	return nil
+}
+
+// TriggerMessageStatus (7.44)
 //
 // Status in TriggerMessage.conf.
 type TriggerMessageStatus string
@@ -1560,7 +1995,7 @@ func (s *TriggerMessageStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch TriggerMessageStatus(raw) {
@@ -1571,10 +2006,14 @@ func (s *TriggerMessageStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: TriggerMessageStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid TriggerMessageStatus", raw),
+	)
 }
 
-// 7.45. UnitOfMeasure
+// UnitOfMeasure (7.45)
 //
 // Allowable values of the optional "unit" field of a Value element, as used in SampledValue. Default value of "unit"
 // is always "Wh".
@@ -1619,7 +2058,7 @@ func (s *UnitOfMeasure) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch UnitOfMeasure(raw) {
@@ -1643,10 +2082,14 @@ func (s *UnitOfMeasure) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: UnitOfMeasure: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid UnitOfMeasure", raw),
+	)
 }
 
-// 7.46. UnlockStatus
+// UnlockStatus (7.46)
 //
 // Status in response to UnlockConnector.req.
 type UnlockStatus string
@@ -1665,7 +2108,7 @@ func (s *UnlockStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch UnlockStatus(raw) {
@@ -1676,10 +2119,14 @@ func (s *UnlockStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: UnlockStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid UnlockStatus", raw),
+	)
 }
 
-// 7.47. UpdateStatus
+// UpdateStatus (7.47)
 //
 // Type of update for a SendLocalList.req.
 type UpdateStatus string
@@ -1699,7 +2146,7 @@ func (s *UpdateStatus) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch UpdateStatus(raw) {
@@ -1711,10 +2158,14 @@ func (s *UpdateStatus) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: UpdateStatus: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid UpdateStatus", raw),
+	)
 }
 
-// 7.48. UpdateType
+// UpdateType (7.48)
 //
 // Type of update for a SendLocalList.req.
 type UpdateType string
@@ -1730,7 +2181,7 @@ func (s *UpdateType) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch UpdateType(raw) {
@@ -1740,10 +2191,14 @@ func (s *UpdateType) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: UpdateType: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid UpdateType", raw),
+	)
 }
 
-// 7.49. ValueFormat
+// ValueFormat (7.49)
 //
 // Format that specifies how the value element in SampledValue is to be interpreted.
 type ValueFormat string
@@ -1759,7 +2214,7 @@ func (s *ValueFormat) UnmarshalJSON(data []byte) error {
 	var raw string
 
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("%w: %v", ErrTypeString, err)
+		return err
 	}
 
 	switch ValueFormat(raw) {
@@ -1769,5 +2224,9 @@ func (s *ValueFormat) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: ValueFormat: %q", ErrInvalidEnum, raw)
+	return ocpp.NewError(
+		ocpp.ErrPropertyConstraintViolation,
+		"",
+		fmt.Sprintf("%s is an invalid ValueFormat", raw),
+	)
 }
