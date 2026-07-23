@@ -3,6 +3,7 @@ package v16
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	ocpp "github.com/feightree/gocpp/ocpp"
@@ -1011,5 +1012,1068 @@ func (s *GetLocalListVersionConf) UnmarshalJSON(data []byte) error {
 }
 
 func (s GetLocalListVersionConf) Validate() error {
+	return nil
+}
+
+// HeartbeatReq (6.29)
+//
+// This contains the field definition of the Heartbeat.req PDU sent by the Charge Point to the Central System. See
+// also Heartbeat
+//
+// No fields are defined.
+type HeartbeatReq struct{}
+
+func (s *HeartbeatReq) UnmarshalJSON(data []byte) error {
+	type Alias HeartbeatReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = HeartbeatReq(a)
+	return s.Validate()
+}
+
+func (s HeartbeatReq) Validate() error {
+	return nil
+}
+
+// HeartbeatConf (6.30)
+//
+// This contains the field definition of the Heartbeat.conf PDU sent by the Central System to the Charge Point in
+// response to a Heartbeat.req PDU. See also Heartbeat
+type HeartbeatConf struct {
+	// Required. This contains the current time of the Central System.
+	CurrentTime time.Time `json:"currentTime"`
+}
+
+func (s *HeartbeatConf) UnmarshalJSON(data []byte) error {
+	type Alias HeartbeatConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = HeartbeatConf(a)
+	return s.Validate()
+}
+
+func (s HeartbeatConf) Validate() error {
+	if s.CurrentTime.IsZero() {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "currentTime", "required field is missing")
+	}
+
+	return nil
+}
+
+// MeterValuesReq (6.31)
+//
+// This contains the field definition of the MeterValues.req PDU sent by the Charge Point to the Central System. See
+// also Meter Values
+type MeterValuesReq struct {
+	// Required. This contains a number (>0) designating a connector of the Charge Point.
+	//
+	// ‘0’ (zero) is used to designate the main powermeter.
+	ConnectorID int32 `json:"connectorId"`
+	// Optional. The transaction to which these meter samples are related.
+	TransactionID *int32 `json:"transactionId,omitempty"`
+	// Required. The sampled meter values with timestamps.
+	MeterValue []MeterValue `json:"meterValue"`
+}
+
+func (s *MeterValuesReq) UnmarshalJSON(data []byte) error {
+	type Alias MeterValuesReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = MeterValuesReq(a)
+	return s.Validate()
+}
+
+func (s MeterValuesReq) Validate() error {
+	if s.ConnectorID < 0 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "connectorId", "must be >= 0")
+	}
+
+	if len(s.MeterValue) == 0 {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "meterValue", "must not be an empty array")
+	}
+
+	for i, v := range s.MeterValue {
+		if err := v.Validate(); err != nil {
+			return ocpp.WrapField(fmt.Sprintf("meterValue[%d]", i), err)
+		}
+	}
+
+	return nil
+}
+
+// MeterValuesConf (6.32)
+//
+// This contains the field definition of the MeterValues.conf PDU sent by the Central System to the Charge Point in
+// response to a MeterValues.req PDU. See also Meter Values
+//
+// No fields are defined.
+type MeterValuesConf struct{}
+
+func (s *MeterValuesConf) UnmarshalJSON(data []byte) error {
+	type Alias MeterValuesConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = MeterValuesConf(a)
+	return s.Validate()
+}
+
+func (s MeterValuesConf) Validate() error {
+	return nil
+}
+
+// RemoteStartTransactionReq (6.33)
+//
+// This contains the field definitions of the RemoteStartTransaction.req PDU sent to Charge Point by Central
+// System. See also Remote Start Transaction
+type RemoteStartTransactionReq struct {
+	// Optional. Number of the connector on which to start the transaction.
+	// connectorId SHALL be > 0
+	ConnectorID *int32 `json:"connectorId,omitempty"`
+	// Required. The identifier that Charge Point must use to start a transaction.
+	IDTag IDToken `json:"idTag"`
+	// Optional. Charging Profile to be used by the Charge Point for the requested
+	// transaction. ChargingProfilePurpose MUST be set to TxProfile
+	ChargingProfile *ChargingProfile `json:"chargingProfile,omitempty"`
+}
+
+func (s *RemoteStartTransactionReq) UnmarshalJSON(data []byte) error {
+	type Alias RemoteStartTransactionReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = RemoteStartTransactionReq(a)
+	return s.Validate()
+}
+
+func (s RemoteStartTransactionReq) Validate() error {
+	if s.ConnectorID != nil && *s.ConnectorID < 1 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "connectorId", "must be > 0")
+	}
+
+	if s.IDTag == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "idTag", "required field is missing")
+	}
+
+	if err := s.IDTag.Validate(); err != nil {
+		return ocpp.WrapField("idTag", err)
+	}
+
+	if s.ChargingProfile != nil {
+		if err := s.ChargingProfile.Validate(); err != nil {
+			return ocpp.WrapField("chargingProfile", err)
+		}
+
+		if s.ChargingProfile.ChargingProfilePurpose != ChargingProfilePurposeTypeTxProfile {
+			return ocpp.NewError(
+				ocpp.ErrPropertyConstraintViolation,
+				"chargingProfile.chargingProfilePurpose",
+				"must be TxProfile",
+			)
+		}
+	}
+
+	return nil
+}
+
+// RemoteStartTransactionConf (6.34)
+//
+// This contains the field definitions of the RemoteStartTransaction.conf PDU sent from Charge Point to Central
+// System. See also Remote Start Transaction
+type RemoteStartTransactionConf struct {
+	// Required. Status indicating whether Charge Point accepts the request to start a transaction.
+	Status RemoteStartStopStatus `json:"status"`
+}
+
+func (s *RemoteStartTransactionConf) UnmarshalJSON(data []byte) error {
+	type Alias RemoteStartTransactionConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = RemoteStartTransactionConf(a)
+	return s.Validate()
+}
+
+func (s RemoteStartTransactionConf) Validate() error {
+	if s.Status == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "status", "required field is missing")
+	}
+
+	return nil
+}
+
+// RemoteStopTransactionReq (6.35)
+//
+// This contains the field definitions of the RemoteStopTransaction.req PDU sent to Charge Point by Central
+// System. See also Remote Stop Transaction
+type RemoteStopTransactionReq struct {
+	// Required. The identifier of the transaction which Charge Point is requested to stop.
+	TransactionID int32 `json:"transactionId"`
+}
+
+func (s *RemoteStopTransactionReq) UnmarshalJSON(data []byte) error {
+	type Alias RemoteStopTransactionReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = RemoteStopTransactionReq(a)
+	return s.Validate()
+}
+
+func (s RemoteStopTransactionReq) Validate() error {
+	if s.TransactionID < 1 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "transactionId", "must be > 0")
+	}
+
+	return nil
+}
+
+// RemoteStopTransactionConf (6.36)
+//
+// This contains the field definitions of the RemoteStopTransaction.conf PDU sent from Charge Point to Central
+// System. See also Remote Stop Transaction
+type RemoteStopTransactionConf struct {
+	// Required. Status indicating whether Charge Point accepts the request to stop a transaction.
+	Status RemoteStartStopStatus `json:"status"`
+}
+
+func (s *RemoteStopTransactionConf) UnmarshalJSON(data []byte) error {
+	type Alias RemoteStopTransactionConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = RemoteStopTransactionConf(a)
+	return s.Validate()
+}
+
+func (s RemoteStopTransactionConf) Validate() error {
+	if s.Status == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "status", "required field is missing")
+	}
+
+	return nil
+}
+
+// ReserveNowReq (6.37)
+//
+// This contains the field definition of the ReserveNow.req PDU sent by the Central System to the Charge Point. See
+// also Reserve Now
+type ReserveNowReq struct {
+	// Required. This contains the id of the connector to be reserved. A value of 0
+	// means that the reservation is not for a specific connector.
+	ConnectorID int32 `json:"connectorId"`
+	// Required. This contains the date and time when the reservation ends.
+	ExpiryDate time.Time `json:"expiryDate"`
+	// Required. The identifier for which the Charge Point has to reserve a connector.
+	IDTag IDToken `json:"idTag"`
+	// Optional. The parent idTag.
+	ParentIDTag *IDToken `json:"parentIdTag,omitempty"`
+	// Required. Unique id for this reservation.
+	ReservationID int32 `json:"reservationId"`
+}
+
+func (s *ReserveNowReq) UnmarshalJSON(data []byte) error {
+	type Alias ReserveNowReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = ReserveNowReq(a)
+	return s.Validate()
+}
+
+func (s ReserveNowReq) Validate() error {
+	if s.ConnectorID < 0 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "connectorId", "must be >= 0")
+	}
+
+	if s.ExpiryDate.IsZero() {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "expiryDate", "required field is missing")
+	}
+
+	if s.IDTag == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "idTag", "required field is missing")
+	}
+
+	if err := s.IDTag.Validate(); err != nil {
+		return ocpp.WrapField("idTag", err)
+	}
+
+	if s.ParentIDTag != nil {
+		if err := s.ParentIDTag.Validate(); err != nil {
+			return ocpp.WrapField("parentIdTag", err)
+		}
+	}
+
+	if s.ReservationID < 1 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "reservationId", "must be > 0")
+	}
+
+	return nil
+}
+
+// ReserveNowConf (6.38)
+//
+// This contains the field definition of the ReserveNow.conf PDU sent by the Charge Point to the Central System in
+// response to a ReserveNow.req PDU. See also Reserve Now
+type ReserveNowConf struct {
+	// Required. This indicates the success or failure of the reservation.
+	Status ReservationStatus `json:"status"`
+}
+
+func (s *ReserveNowConf) UnmarshalJSON(data []byte) error {
+	type Alias ReserveNowConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = ReserveNowConf(a)
+	return s.Validate()
+}
+
+func (s ReserveNowConf) Validate() error {
+	if s.Status == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "status", "required field is missing")
+	}
+
+	return nil
+}
+
+// ResetReq (6.39)
+//
+// This contains the field definition of the Reset.req PDU sent by the Central System to the Charge Point. See also
+// Reset
+type ResetReq struct {
+	// Required. This contains the type of reset that the Charge Point should perform.
+	Type ResetType `json:"type"`
+}
+
+func (s *ResetReq) UnmarshalJSON(data []byte) error {
+	type Alias ResetReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = ResetReq(a)
+	return s.Validate()
+}
+
+func (s ResetReq) Validate() error {
+	if s.Type == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "type", "required field is missing")
+	}
+
+	return nil
+}
+
+// ResetConf (6.40)
+//
+// This contains the field definition of the Reset.conf PDU sent by the Charge Point to the Central System in
+// response to a Reset.req PDU. See also Reset
+type ResetConf struct {
+	// Required. This indicates whether the Charge Point is able to perform the reset.
+	Status ResetStatus `json:"status"`
+}
+
+func (s *ResetConf) UnmarshalJSON(data []byte) error {
+	type Alias ResetConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = ResetConf(a)
+	return s.Validate()
+}
+
+func (s ResetConf) Validate() error {
+	if s.Status == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "status", "required field is missing")
+	}
+
+	return nil
+}
+
+// SendLocalListReq (6.41)
+//
+// This contains the field definition of the SendLocalList.req PDU sent by the Central System to the Charge Point.
+//
+// If no (empty) localAuthorizationList is given and the updateType is Full, all identifications are removed from the
+// list. Requesting a Differential update without (empty) localAuthorizationList will have no effect on the list. All
+// idTags in the localAuthorizationList MUST be unique, no duplicate values are allowed. See also Send Local List
+type SendLocalListReq struct {
+	// Required. In case of a full update this is the version number of the
+	// full list. In case of a differential update it is the version number of
+	// the list after the update has been applied.
+	ListVersion int32 `json:"listVersion"`
+	// Optional. In case of a full update this contains the list of values
+	// that form the new local authorization list. In case of a differential
+	// update it contains the changes to be applied to the local
+	// authorization list in the Charge Point. Maximum number of
+	// AuthorizationData elements is available in the configuration key:
+	// SendLocalListMaxLength
+	LocalAuthorizationList []AuthorizationData `json:"localAuthorizationList,omitempty"`
+	// Required. This contains the type of update (full or differential) of
+	// this request.
+	UpdateType UpdateType `json:"updateType"`
+}
+
+func (s *SendLocalListReq) UnmarshalJSON(data []byte) error {
+	type Alias SendLocalListReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = SendLocalListReq(a)
+	return s.Validate()
+}
+
+func (s SendLocalListReq) Validate() error {
+	seen := make(map[string]struct{}, len(s.LocalAuthorizationList))
+
+	for i, v := range s.LocalAuthorizationList {
+		if err := v.Validate(); err != nil {
+			return ocpp.WrapField(fmt.Sprintf("localAuthorizationList[%d]", i), err)
+		}
+
+		key := strings.ToLower(v.IDTag.String())
+		if _, dup := seen[key]; dup {
+			return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, fmt.Sprintf("localAuthorizationList[%d].idTag", i), "must be unique")
+		}
+
+		seen[key] = struct{}{}
+	}
+
+	if s.UpdateType == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "updateType", "required field is missing")
+	}
+
+	return nil
+}
+
+// SendLocalListConf (6.42)
+//
+// This contains the field definition of the SendLocalList.conf PDU sent by the Charge Point to the Central System in
+// response to a SendLocalList.req PDU. See also Send Local List
+type SendLocalListConf struct {
+	// Required. This indicates whether the Charge Point has successfully received and
+	// applied the update of the local authorization list.
+	Status UpdateStatus `json:"status"`
+}
+
+func (s *SendLocalListConf) UnmarshalJSON(data []byte) error {
+	type Alias SendLocalListConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = SendLocalListConf(a)
+	return s.Validate()
+}
+
+func (s SendLocalListConf) Validate() error {
+	if s.Status == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "status", "required field is missing")
+	}
+
+	return nil
+}
+
+// SetChargingProfileReq (6.43)
+//
+// This contains the field definition of the SetChargingProfile.req PDU sent by the Central System to the Charge
+// Point.
+//
+// The Central System uses this message to send charging profiles to a Charge Point. See also Set Charging Profile
+type SetChargingProfileReq struct {
+	// Required. The connector to which the charging profile applies. If connectorId = 0,
+	// the message contains an overall limit for the Charge Point.
+	ConnectorID int32 `json:"connectorId"`
+	// Required. The charging profile to be set at the Charge Point.
+	CsChargingProfiles ChargingProfile `json:"csChargingProfiles"`
+}
+
+func (s *SetChargingProfileReq) UnmarshalJSON(data []byte) error {
+	type Alias SetChargingProfileReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = SetChargingProfileReq(a)
+	return s.Validate()
+}
+
+func (s SetChargingProfileReq) Validate() error {
+	if s.ConnectorID < 0 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "connectorId", "must be >= 0")
+	}
+
+	if err := s.CsChargingProfiles.Validate(); err != nil {
+		return ocpp.WrapField("csChargingProfiles", err)
+	}
+
+	if s.CsChargingProfiles.ChargingProfilePurpose == ChargingProfilePurposeTypeChargePointMaxProfile && s.ConnectorID != 0 {
+		return ocpp.NewError(
+			ocpp.ErrPropertyConstraintViolation,
+			"connectorId",
+			"must be 0 when csChargingProfiles.chargingProfilePurpose is ChargePointMaxProfile",
+		)
+	}
+
+	return nil
+}
+
+// SetChargingProfileConf (6.44)
+//
+// This contains the field definition of the SetChargingProfile.conf PDU sent by the Charge Point to the Central
+// System in response to a SetChargingProfile.req PDU. See also Set Charging Profile
+type SetChargingProfileConf struct {
+	// Required. Returns whether the Charge Point has been able to process the
+	// message successfully. This does not guarantee the schedule will be followed to
+	// the letter. There might be other constraints the Charge Point may need to take
+	// into account.
+	Status ChargingProfileStatus `json:"status"`
+}
+
+func (s *SetChargingProfileConf) UnmarshalJSON(data []byte) error {
+	type Alias SetChargingProfileConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = SetChargingProfileConf(a)
+	return s.Validate()
+}
+
+func (s SetChargingProfileConf) Validate() error {
+	if s.Status == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "status", "required field is missing")
+	}
+
+	return nil
+}
+
+// StartTransactionReq (6.45)
+//
+// This section contains the field definition of the StartTransaction.req PDU sent by the Charge Point to the Central
+// System. See also Start Transaction
+type StartTransactionReq struct {
+	// Required. This identifies which connector of the Charge Point is used.
+	ConnectorID int32 `json:"connectorId"`
+	// Required. This contains the identifier for which a transaction has to be started.
+	IDTag IDToken `json:"idTag"`
+	// Required. This contains the meter value in Wh for the connector at start of the
+	// transaction.
+	MeterStart int32 `json:"meterStart"`
+	// Optional. This contains the id of the reservation that terminates as a result of
+	// this transaction.
+	ReservationID *int32 `json:"reservationId,omitempty"`
+	// Required. This contains the date and time on which the transaction is started.
+	Timestamp time.Time `json:"timestamp"`
+}
+
+func (s *StartTransactionReq) UnmarshalJSON(data []byte) error {
+	type Alias StartTransactionReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = StartTransactionReq(a)
+	return s.Validate()
+}
+
+func (s StartTransactionReq) Validate() error {
+	if s.ConnectorID < 1 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "connectorId", "must be > 0")
+	}
+
+	if s.IDTag == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "idTag", "required field is missing")
+	}
+
+	if err := s.IDTag.Validate(); err != nil {
+		return ocpp.WrapField("idTag", err)
+	}
+
+	if s.MeterStart < 0 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "meterStart", "must be >= 0")
+	}
+
+	if s.Timestamp.IsZero() {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "timestamp", "required field is missing")
+	}
+
+	return nil
+}
+
+// StartTransactionConf (6.46)
+//
+// This contains the field definition of the StartTransaction.conf PDU sent by the Central System to the Charge Point
+// in response to a StartTransaction.req PDU. See also Start Transaction
+type StartTransactionConf struct {
+	// Required. This contains information about authorization status, expiry and
+	// parent id.
+	IDTagInfo IDTagInfo `json:"idTagInfo"`
+	// Required. This contains the transaction id supplied by the Central System.
+	TransactionID int32 `json:"transactionId"`
+}
+
+func (s *StartTransactionConf) UnmarshalJSON(data []byte) error {
+	type Alias StartTransactionConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = StartTransactionConf(a)
+	return s.Validate()
+}
+
+func (s StartTransactionConf) Validate() error {
+	if err := s.IDTagInfo.Validate(); err != nil {
+		return ocpp.WrapField("idTagInfo", err)
+	}
+
+	if s.TransactionID < 1 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "transactionId", "must be > 0")
+	}
+
+	return nil
+}
+
+// StatusNotificationReq (6.47)
+//
+// This contains the field definition of the StatusNotification.req PDU sent by the Charge Point to the Central
+// System. See also Status Notification
+type StatusNotificationReq struct {
+	// Required. The id of the connector for which the status is reported.
+	// Id '0' (zero) is used if the status is for the Charge Point main
+	// controller.
+	ConnectorID int32 `json:"connectorId"`
+	// Required. This contains the error code reported by the Charge
+	// Point.
+	ErrorCode ChargePointErrorCode `json:"errorCode"`
+	// Optional. Additional free format information related to the error.
+	Info *CiString50Type `json:"info,omitempty"`
+	// Required. This contains the current status of the Charge Point.
+	Status ChargePointStatus `json:"status"`
+	// Optional. The time for which the status is reported. If absent time
+	// of receipt of the message will be assumed.
+	Timestamp *time.Time `json:"timestamp,omitempty"`
+	// Optional. This identifies the vendor-specific implementation.
+	VendorID *CiString255Type `json:"vendorId,omitempty"`
+	// Optional. This contains the vendor-specific error code.
+	VendorErrorCode *CiString50Type `json:"vendorErrorCode,omitempty"`
+}
+
+func (s *StatusNotificationReq) UnmarshalJSON(data []byte) error {
+	type Alias StatusNotificationReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = StatusNotificationReq(a)
+	return s.Validate()
+}
+
+func (s StatusNotificationReq) Validate() error {
+	if s.ConnectorID < 0 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "connectorId", "must be >= 0")
+	}
+
+	if s.ErrorCode == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "errorCode", "required field is missing")
+	}
+
+	if s.Info != nil {
+		if err := s.Info.Validate(); err != nil {
+			return ocpp.WrapField("info", err)
+		}
+	}
+
+	if s.Status == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "status", "required field is missing")
+	}
+
+	if s.VendorID != nil {
+		if err := s.VendorID.Validate(); err != nil {
+			return ocpp.WrapField("vendorId", err)
+		}
+	}
+
+	if s.VendorErrorCode != nil {
+		if err := s.VendorErrorCode.Validate(); err != nil {
+			return ocpp.WrapField("vendorErrorCode", err)
+		}
+	}
+
+	return nil
+}
+
+// StatusNotificationConf (6.48)
+//
+// This contains the field definition of the StatusNotification.conf PDU sent by the Central System to the Charge
+// Point in response to an StatusNotification.req PDU. See also Status Notification
+//
+// No fields are defined.
+type StatusNotificationConf struct{}
+
+func (s *StatusNotificationConf) UnmarshalJSON(data []byte) error {
+	type Alias StatusNotificationConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = StatusNotificationConf(a)
+	return s.Validate()
+}
+
+func (s StatusNotificationConf) Validate() error {
+	return nil
+}
+
+// StopTransactionReq (6.49)
+//
+// This contains the field definition of the StopTransaction.req PDU sent by the Charge Point to the Central System.
+// See also Stop Transaction
+type StopTransactionReq struct {
+	// Optional. This contains the identifier which requested to stop the charging. It is
+	// optional because a Charge Point may terminate charging without the presence
+	// of an idTag, e.g. in case of a reset. A Charge Point SHALL send the idTag if known.
+	IDTag *IDToken `json:"idTag,omitempty"`
+	// Required. This contains the meter value in Wh for the connector at end of the
+	// transaction.
+	MeterStop int32 `json:"meterStop"`
+	// Required. This contains the date and time on which the transaction is stopped.
+	Timestamp time.Time `json:"timestamp"`
+	// Required. This contains the transaction-id as received by the
+	// StartTransaction.conf.
+	TransactionID int32 `json:"transactionId"`
+	// Optional. This contains the reason why the transaction was stopped. MAY only
+	// be omitted when the Reason is "Local".
+	Reason *Reason `json:"reason,omitempty"`
+	// Optional. This contains transaction usage details relevant for billing purposes.
+	TransactionData []MeterValue `json:"transactionData,omitempty"`
+}
+
+func (s *StopTransactionReq) UnmarshalJSON(data []byte) error {
+	type Alias StopTransactionReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = StopTransactionReq(a)
+	return s.Validate()
+}
+
+func (s StopTransactionReq) Validate() error {
+	if s.IDTag != nil {
+		if err := s.IDTag.Validate(); err != nil {
+			return ocpp.WrapField("idTag", err)
+		}
+	}
+
+	if s.MeterStop < 0 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "meterStop", "must be >= 0")
+	}
+
+	if s.Timestamp.IsZero() {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "timestamp", "required field is missing")
+	}
+
+	if s.TransactionID < 1 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "transactionId", "must be > 0")
+	}
+
+	for i, v := range s.TransactionData {
+		if err := v.Validate(); err != nil {
+			return ocpp.WrapField(fmt.Sprintf("transactionData[%d]", i), err)
+		}
+	}
+
+	return nil
+}
+
+// StopTransactionConf (6.50)
+//
+// This contains the field definition of the StopTransaction.conf PDU sent by the Central System to the Charge Point
+// in response to a StopTransaction.req PDU. See also Stop Transaction
+type StopTransactionConf struct {
+	// Optional. This contains information about authorization status, expiry and
+	// parent id. It is optional, because a transaction may have been stopped without
+	// an identifier.
+	IDTagInfo *IDTagInfo `json:"idTagInfo,omitempty"`
+}
+
+func (s *StopTransactionConf) UnmarshalJSON(data []byte) error {
+	type Alias StopTransactionConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = StopTransactionConf(a)
+	return s.Validate()
+}
+
+func (s StopTransactionConf) Validate() error {
+	if s.IDTagInfo != nil {
+		if err := s.IDTagInfo.Validate(); err != nil {
+			return ocpp.WrapField("idTagInfo", err)
+		}
+	}
+
+	return nil
+}
+
+// TriggerMessageReq (6.51)
+//
+// This contains the field definition of the TriggerMessage.req PDU sent by the Central System to the Charge Point.
+// See also Trigger Message
+type TriggerMessageReq struct {
+	// Required.
+	RequestedMessage MessageTrigger `json:"requestedMessage"`
+	// Optional. Only filled in when request applies to a specific connector.
+	ConnectorID *int32 `json:"connectorId,omitempty"`
+}
+
+func (s *TriggerMessageReq) UnmarshalJSON(data []byte) error {
+	type Alias TriggerMessageReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = TriggerMessageReq(a)
+	return s.Validate()
+}
+
+func (s TriggerMessageReq) Validate() error {
+	if s.RequestedMessage == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "requestedMessage", "required field is missing")
+	}
+
+	if s.ConnectorID != nil && *s.ConnectorID < 1 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "connectorId", "must be > 0")
+	}
+
+	return nil
+}
+
+// TriggerMessageConf (6.52)
+//
+// This contains the field definition of the TriggerMessage.conf PDU sent by the Charge Point to the Central System
+// in response to a TriggerMessage.req PDU. See also Trigger Message
+type TriggerMessageConf struct {
+	// Required. Indicates whether the Charge Point will send the requested
+	// notification or not.
+	Status TriggerMessageStatus `json:"status"`
+}
+
+func (s *TriggerMessageConf) UnmarshalJSON(data []byte) error {
+	type Alias TriggerMessageConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = TriggerMessageConf(a)
+	return s.Validate()
+}
+
+func (s TriggerMessageConf) Validate() error {
+	if s.Status == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "status", "required field is missing")
+	}
+
+	return nil
+}
+
+// UnlockConnectorReq (6.53)
+//
+// This contains the field definition of the UnlockConnector.req PDU sent by the Central System to the Charge
+// Point. See also Unlock Connector
+type UnlockConnectorReq struct {
+	// Required. This contains the identifier of the connector to be unlocked.
+	ConnectorID int32 `json:"connectorId"`
+}
+
+func (s *UnlockConnectorReq) UnmarshalJSON(data []byte) error {
+	type Alias UnlockConnectorReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = UnlockConnectorReq(a)
+	return s.Validate()
+}
+
+func (s UnlockConnectorReq) Validate() error {
+	if s.ConnectorID < 1 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "connectorId", "must be > 0")
+	}
+
+	return nil
+}
+
+// UnlockConnectorConf (6.54)
+//
+// This contains the field definition of the UnlockConnector.conf PDU sent by the Charge Point to the Central
+// System in response to an UnlockConnector.req PDU. See also Unlock Connector
+type UnlockConnectorConf struct {
+	// Required. This indicates whether the Charge Point has unlocked the connector.
+	Status UnlockStatus `json:"status"`
+}
+
+func (s *UnlockConnectorConf) UnmarshalJSON(data []byte) error {
+	type Alias UnlockConnectorConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = UnlockConnectorConf(a)
+	return s.Validate()
+}
+
+func (s UnlockConnectorConf) Validate() error {
+	if s.Status == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "status", "required field is missing")
+	}
+
+	return nil
+}
+
+// UpdateFirmwareReq (6.55)
+//
+// This contains the field definition of the UpdateFirmware.req PDU sent by the Central System to the Charge Point.
+// See also Update Firmware
+type UpdateFirmwareReq struct {
+	// Required. This contains a string containing a URI pointing to a location from
+	// which to retrieve the firmware.
+	Location string `json:"location"`
+	// Optional. This specifies how many times Charge Point must try to download the
+	// firmware before giving up. If this field is not present, it is left to Charge Point to
+	// decide how many times it wants to retry.
+	Retries *int32 `json:"retries,omitempty"`
+	// Required. This contains the date and time after which the Charge Point is
+	// allowed to retrieve the (new) firmware.
+	RetrieveDate time.Time `json:"retrieveDate"`
+	// Optional. The interval in seconds after which a retry may be attempted. If this
+	// field is not present, it is left to Charge Point to decide how long to wait between
+	// attempts.
+	RetryInterval *int32 `json:"retryInterval,omitempty"`
+}
+
+func (s *UpdateFirmwareReq) UnmarshalJSON(data []byte) error {
+	type Alias UpdateFirmwareReq
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = UpdateFirmwareReq(a)
+	return s.Validate()
+}
+
+func (s UpdateFirmwareReq) Validate() error {
+	if s.Location == "" {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "location", "required field is missing")
+	}
+
+	if s.Retries != nil && *s.Retries < 0 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "retries", "must be >= 0")
+	}
+
+	if s.RetrieveDate.IsZero() {
+		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "retrieveDate", "required field is missing")
+	}
+
+	if s.RetryInterval != nil && *s.RetryInterval < 1 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "retryInterval", "must be >= 1")
+	}
+
+	return nil
+}
+
+// UpdateFirmwareConf (6.56)
+//
+// This contains the field definition of the UpdateFirmware.conf PDU sent by the Charge Point to the Central
+// System in response to a UpdateFirmware.req PDU. See also Update Firmware
+//
+// No fields are defined.
+type UpdateFirmwareConf struct{}
+
+func (s *UpdateFirmwareConf) UnmarshalJSON(data []byte) error {
+	type Alias UpdateFirmwareConf
+	var a Alias
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	*s = UpdateFirmwareConf(a)
+	return s.Validate()
+}
+
+func (s UpdateFirmwareConf) Validate() error {
 	return nil
 }

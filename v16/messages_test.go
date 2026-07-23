@@ -1842,3 +1842,2183 @@ func TestGetLocalListVersionConfValidate(t *testing.T) {
 		})
 	}
 }
+
+func TestHeartbeatReqUnmarshal(t *testing.T) {
+	t.Run("valid input", func(t *testing.T) {
+		var v HeartbeatReq
+		err := json.Unmarshal([]byte(`{}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestHeartbeatReqValidate(t *testing.T) {
+	t.Run("accepts valid input", func(t *testing.T) {
+		err := HeartbeatReq{}.Validate()
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestHeartbeatConfUnmarshal(t *testing.T) {
+	t.Run("rejects missing currentTime", func(t *testing.T) {
+		var v HeartbeatConf
+		err := json.Unmarshal([]byte(`{}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("valid input", func(t *testing.T) {
+		var v HeartbeatConf
+		err := json.Unmarshal([]byte(`{"currentTime":"2024-01-01T00:00:00Z"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if !v.CurrentTime.Equal(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)) {
+			t.Errorf("got %v, want %v", v.CurrentTime, "2024-01-01T00:00:00Z")
+		}
+	})
+}
+
+func TestHeartbeatConfValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   HeartbeatConf
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   HeartbeatConf{CurrentTime: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects zero currentTime",
+			input:   HeartbeatConf{},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestMeterValuesReqUnmarshal(t *testing.T) {
+	t.Run("rejects negative connectorId", func(t *testing.T) {
+		var v MeterValuesReq
+		err := json.Unmarshal([]byte(`{"connectorId":-1,"meterValue":[{"timestamp":"2024-01-01T00:00:00Z","sampledValue":[{"value":"100"}]}]}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("rejects empty meterValue array", func(t *testing.T) {
+		var v MeterValuesReq
+		err := json.Unmarshal([]byte(`{"connectorId":1,"meterValue":[]}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("rejects invalid nested meterValue", func(t *testing.T) {
+		var v MeterValuesReq
+		err := json.Unmarshal([]byte(`{"connectorId":1,"meterValue":[{"timestamp":"2024-01-01T00:00:00Z","sampledValue":[]}]}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("valid input with only required fields", func(t *testing.T) {
+		var v MeterValuesReq
+		err := json.Unmarshal([]byte(`{"connectorId":0,"meterValue":[{"timestamp":"2024-01-01T00:00:00Z","sampledValue":[{"value":"100"}]}]}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.ConnectorID != 0 {
+			t.Errorf("got %d, want %d", v.ConnectorID, 0)
+		}
+
+		if len(v.MeterValue) != 1 || len(v.MeterValue[0].SampledValue) != 1 || v.MeterValue[0].SampledValue[0].Value != "100" {
+			t.Errorf("got %v, want a single meterValue with sampledValue[0].value %q", v.MeterValue, "100")
+		}
+	})
+
+	t.Run("valid input with all fields", func(t *testing.T) {
+		var v MeterValuesReq
+		err := json.Unmarshal([]byte(`{"connectorId":1,"transactionId":42,"meterValue":[{"timestamp":"2024-01-01T00:00:00Z","sampledValue":[{"value":"100"}]}]}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.TransactionID == nil || *v.TransactionID != 42 {
+			t.Errorf("got %v, want %d", v.TransactionID, 42)
+		}
+	})
+}
+
+func TestMeterValuesReqValidate(t *testing.T) {
+	validMeterValue := MeterValue{
+		Timestamp:    time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+		SampledValue: []SampledValue{{Value: "100"}},
+	}
+
+	tests := []struct {
+		name    string
+		input   MeterValuesReq
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   MeterValuesReq{ConnectorID: 1, MeterValue: []MeterValue{validMeterValue}},
+			wantErr: nil,
+		},
+		{
+			name:    "accepts zero connectorId",
+			input:   MeterValuesReq{ConnectorID: 0, MeterValue: []MeterValue{validMeterValue}},
+			wantErr: nil,
+		},
+		{
+			name:    "accepts optional transactionId",
+			input:   MeterValuesReq{ConnectorID: 1, TransactionID: ptr(int32(42)), MeterValue: []MeterValue{validMeterValue}},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects negative connectorId",
+			input:   MeterValuesReq{ConnectorID: -1, MeterValue: []MeterValue{validMeterValue}},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects empty meterValue array",
+			input:   MeterValuesReq{ConnectorID: 1, MeterValue: []MeterValue{}},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects invalid meterValue entry",
+			input:   MeterValuesReq{ConnectorID: 1, MeterValue: []MeterValue{{Timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)}}},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestMeterValuesConfUnmarshal(t *testing.T) {
+	t.Run("valid input", func(t *testing.T) {
+		var v MeterValuesConf
+		err := json.Unmarshal([]byte(`{}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestMeterValuesConfValidate(t *testing.T) {
+	t.Run("accepts valid input", func(t *testing.T) {
+		err := MeterValuesConf{}.Validate()
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestRemoteStartTransactionReqUnmarshal(t *testing.T) {
+	t.Run("rejects zero connectorId", func(t *testing.T) {
+		var v RemoteStartTransactionReq
+		err := json.Unmarshal([]byte(`{"connectorId":0,"idTag":"ABC123"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("rejects missing idTag", func(t *testing.T) {
+		var v RemoteStartTransactionReq
+		err := json.Unmarshal([]byte(`{}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("rejects chargingProfile with non-TxProfile purpose", func(t *testing.T) {
+		var v RemoteStartTransactionReq
+		err := json.Unmarshal([]byte(`{"idTag":"ABC123","chargingProfile":{"chargingProfileId":1,"stackLevel":0,"chargingProfilePurpose":"ChargePointMaxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"W","chargingSchedulePeriod":[{"startPeriod":0,"limit":32}]}}}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input with only required fields", func(t *testing.T) {
+		var v RemoteStartTransactionReq
+		err := json.Unmarshal([]byte(`{"idTag":"ABC123"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.IDTag != "ABC123" {
+			t.Errorf("got %q, want %q", v.IDTag, "ABC123")
+		}
+	})
+
+	t.Run("valid input with all fields", func(t *testing.T) {
+		var v RemoteStartTransactionReq
+		err := json.Unmarshal([]byte(`{"connectorId":1,"idTag":"ABC123","chargingProfile":{"chargingProfileId":1,"stackLevel":0,"chargingProfilePurpose":"TxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"W","chargingSchedulePeriod":[{"startPeriod":0,"limit":32}]}}}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.ConnectorID == nil || *v.ConnectorID != 1 {
+			t.Errorf("got %v, want %d", v.ConnectorID, 1)
+		}
+
+		if v.ChargingProfile == nil || v.ChargingProfile.ChargingProfilePurpose != ChargingProfilePurposeTypeTxProfile {
+			t.Errorf("got %v, want chargingProfilePurpose %q", v.ChargingProfile, ChargingProfilePurposeTypeTxProfile)
+		}
+	})
+}
+
+func TestRemoteStartTransactionReqValidate(t *testing.T) {
+	validProfile := ChargingProfile{
+		ChargingProfileID:      1,
+		StackLevel:             0,
+		ChargingProfilePurpose: ChargingProfilePurposeTypeTxProfile,
+		ChargingProfileKind:    ChargingProfileKindTypeAbsolute,
+		ChargingSchedule: ChargingSchedule{
+			ChargingRateUnit:       ChargingRateUnitTypeW,
+			ChargingSchedulePeriod: []ChargingSchedulePeriod{{StartPeriod: 0, Limit: 32}},
+		},
+	}
+
+	wrongPurposeProfile := validProfile
+	wrongPurposeProfile.ChargingProfilePurpose = ChargingProfilePurposeTypeChargePointMaxProfile
+
+	invalidProfile := validProfile
+	invalidProfile.StackLevel = -1
+
+	tests := []struct {
+		name    string
+		input   RemoteStartTransactionReq
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input with only required fields",
+			input:   RemoteStartTransactionReq{IDTag: "ABC123"},
+			wantErr: nil,
+		},
+		{
+			name:    "accepts positive connectorId",
+			input:   RemoteStartTransactionReq{ConnectorID: ptr(int32(1)), IDTag: "ABC123"},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects zero connectorId",
+			input:   RemoteStartTransactionReq{ConnectorID: ptr(int32(0)), IDTag: "ABC123"},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects negative connectorId",
+			input:   RemoteStartTransactionReq{ConnectorID: ptr(int32(-1)), IDTag: "ABC123"},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects empty idTag",
+			input:   RemoteStartTransactionReq{IDTag: ""},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects oversized idTag",
+			input:   RemoteStartTransactionReq{IDTag: "ThisIsOver20Characters"},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "accepts valid chargingProfile with TxProfile purpose",
+			input:   RemoteStartTransactionReq{IDTag: "ABC123", ChargingProfile: &validProfile},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects chargingProfile with non-TxProfile purpose",
+			input:   RemoteStartTransactionReq{IDTag: "ABC123", ChargingProfile: &wrongPurposeProfile},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects invalid nested chargingProfile",
+			input:   RemoteStartTransactionReq{IDTag: "ABC123", ChargingProfile: &invalidProfile},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestRemoteStartTransactionConfUnmarshal(t *testing.T) {
+	t.Run("rejects invalid status", func(t *testing.T) {
+		var v RemoteStartTransactionConf
+		err := json.Unmarshal([]byte(`{"status":"BadStatus"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input", func(t *testing.T) {
+		var v RemoteStartTransactionConf
+		err := json.Unmarshal([]byte(`{"status":"Accepted"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Status != RemoteStartStopStatusAccepted {
+			t.Errorf("got %q, want %q", v.Status, RemoteStartStopStatusAccepted)
+		}
+	})
+}
+
+func TestRemoteStartTransactionConfValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   RemoteStartTransactionConf
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   RemoteStartTransactionConf{Status: RemoteStartStopStatusAccepted},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects empty status",
+			input:   RemoteStartTransactionConf{Status: ""},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestRemoteStopTransactionReqUnmarshal(t *testing.T) {
+	t.Run("rejects zero transactionId", func(t *testing.T) {
+		var v RemoteStopTransactionReq
+		err := json.Unmarshal([]byte(`{"transactionId":0}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input", func(t *testing.T) {
+		var v RemoteStopTransactionReq
+		err := json.Unmarshal([]byte(`{"transactionId":42}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.TransactionID != 42 {
+			t.Errorf("got %d, want %d", v.TransactionID, 42)
+		}
+	})
+}
+
+func TestRemoteStopTransactionReqValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   RemoteStopTransactionReq
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   RemoteStopTransactionReq{TransactionID: 42},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects zero transactionId",
+			input:   RemoteStopTransactionReq{TransactionID: 0},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects negative transactionId",
+			input:   RemoteStopTransactionReq{TransactionID: -1},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestRemoteStopTransactionConfUnmarshal(t *testing.T) {
+	t.Run("rejects invalid status", func(t *testing.T) {
+		var v RemoteStopTransactionConf
+		err := json.Unmarshal([]byte(`{"status":"BadStatus"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input", func(t *testing.T) {
+		var v RemoteStopTransactionConf
+		err := json.Unmarshal([]byte(`{"status":"Accepted"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Status != RemoteStartStopStatusAccepted {
+			t.Errorf("got %q, want %q", v.Status, RemoteStartStopStatusAccepted)
+		}
+	})
+}
+
+func TestRemoteStopTransactionConfValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   RemoteStopTransactionConf
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   RemoteStopTransactionConf{Status: RemoteStartStopStatusAccepted},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects empty status",
+			input:   RemoteStopTransactionConf{Status: ""},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestReserveNowReqUnmarshal(t *testing.T) {
+	t.Run("rejects negative connectorId", func(t *testing.T) {
+		var v ReserveNowReq
+		err := json.Unmarshal([]byte(`{"connectorId":-1,"expiryDate":"2024-01-01T00:00:00Z","idTag":"ABC123","reservationId":1}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("rejects missing expiryDate", func(t *testing.T) {
+		var v ReserveNowReq
+		err := json.Unmarshal([]byte(`{"connectorId":0,"idTag":"ABC123","reservationId":1}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("rejects missing idTag", func(t *testing.T) {
+		var v ReserveNowReq
+		err := json.Unmarshal([]byte(`{"connectorId":0,"expiryDate":"2024-01-01T00:00:00Z","reservationId":1}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("rejects zero reservationId", func(t *testing.T) {
+		var v ReserveNowReq
+		err := json.Unmarshal([]byte(`{"connectorId":0,"expiryDate":"2024-01-01T00:00:00Z","idTag":"ABC123","reservationId":0}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input with only required fields", func(t *testing.T) {
+		var v ReserveNowReq
+		err := json.Unmarshal([]byte(`{"connectorId":0,"expiryDate":"2024-01-01T00:00:00Z","idTag":"ABC123","reservationId":1}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.IDTag != "ABC123" {
+			t.Errorf("got %q, want %q", v.IDTag, "ABC123")
+		}
+
+		if v.ReservationID != 1 {
+			t.Errorf("got %d, want %d", v.ReservationID, 1)
+		}
+	})
+
+	t.Run("valid input with all fields", func(t *testing.T) {
+		var v ReserveNowReq
+		err := json.Unmarshal([]byte(`{"connectorId":1,"expiryDate":"2024-01-01T00:00:00Z","idTag":"ABC123","parentIdTag":"PARENT01","reservationId":1}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.ParentIDTag == nil || *v.ParentIDTag != "PARENT01" {
+			t.Errorf("got %v, want %q", v.ParentIDTag, "PARENT01")
+		}
+
+		if !v.ExpiryDate.Equal(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)) {
+			t.Errorf("got %v, want %v", v.ExpiryDate, "2024-01-01T00:00:00Z")
+		}
+	})
+}
+
+func TestReserveNowReqValidate(t *testing.T) {
+	validExpiry := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name    string
+		input   ReserveNowReq
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   ReserveNowReq{ConnectorID: 1, ExpiryDate: validExpiry, IDTag: "ABC123", ReservationID: 1},
+			wantErr: nil,
+		},
+		{
+			name:    "accepts zero connectorId",
+			input:   ReserveNowReq{ConnectorID: 0, ExpiryDate: validExpiry, IDTag: "ABC123", ReservationID: 1},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects negative connectorId",
+			input:   ReserveNowReq{ConnectorID: -1, ExpiryDate: validExpiry, IDTag: "ABC123", ReservationID: 1},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects zero expiryDate",
+			input:   ReserveNowReq{ConnectorID: 0, IDTag: "ABC123", ReservationID: 1},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects empty idTag",
+			input:   ReserveNowReq{ConnectorID: 0, ExpiryDate: validExpiry, IDTag: "", ReservationID: 1},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects oversized idTag",
+			input:   ReserveNowReq{ConnectorID: 0, ExpiryDate: validExpiry, IDTag: "ThisIsOver20Characters", ReservationID: 1},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "accepts valid parentIdTag",
+			input:   ReserveNowReq{ConnectorID: 0, ExpiryDate: validExpiry, IDTag: "ABC123", ParentIDTag: ptr(IDToken("PARENT01")), ReservationID: 1},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects oversized parentIdTag",
+			input:   ReserveNowReq{ConnectorID: 0, ExpiryDate: validExpiry, IDTag: "ABC123", ParentIDTag: ptr(IDToken("ThisIsOver20Characters")), ReservationID: 1},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects zero reservationId",
+			input:   ReserveNowReq{ConnectorID: 0, ExpiryDate: validExpiry, IDTag: "ABC123", ReservationID: 0},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects negative reservationId",
+			input:   ReserveNowReq{ConnectorID: 0, ExpiryDate: validExpiry, IDTag: "ABC123", ReservationID: -1},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestReserveNowConfUnmarshal(t *testing.T) {
+	t.Run("rejects invalid status", func(t *testing.T) {
+		var v ReserveNowConf
+		err := json.Unmarshal([]byte(`{"status":"BadStatus"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input", func(t *testing.T) {
+		var v ReserveNowConf
+		err := json.Unmarshal([]byte(`{"status":"Accepted"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Status != ReservationStatusAccepted {
+			t.Errorf("got %q, want %q", v.Status, ReservationStatusAccepted)
+		}
+	})
+}
+
+func TestReserveNowConfValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   ReserveNowConf
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   ReserveNowConf{Status: ReservationStatusAccepted},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects empty status",
+			input:   ReserveNowConf{Status: ""},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestResetReqUnmarshal(t *testing.T) {
+	t.Run("rejects invalid type", func(t *testing.T) {
+		var v ResetReq
+		err := json.Unmarshal([]byte(`{"type":"BadType"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input", func(t *testing.T) {
+		var v ResetReq
+		err := json.Unmarshal([]byte(`{"type":"Hard"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Type != ResetTypeHard {
+			t.Errorf("got %q, want %q", v.Type, ResetTypeHard)
+		}
+	})
+}
+
+func TestResetReqValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   ResetReq
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   ResetReq{Type: ResetTypeSoft},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects empty type",
+			input:   ResetReq{Type: ""},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestResetConfUnmarshal(t *testing.T) {
+	t.Run("rejects invalid status", func(t *testing.T) {
+		var v ResetConf
+		err := json.Unmarshal([]byte(`{"status":"BadStatus"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input", func(t *testing.T) {
+		var v ResetConf
+		err := json.Unmarshal([]byte(`{"status":"Accepted"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Status != ResetStatusAccepted {
+			t.Errorf("got %q, want %q", v.Status, ResetStatusAccepted)
+		}
+	})
+}
+
+func TestResetConfValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   ResetConf
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   ResetConf{Status: ResetStatusAccepted},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects empty status",
+			input:   ResetConf{Status: ""},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestSendLocalListReqUnmarshal(t *testing.T) {
+	t.Run("rejects missing updateType", func(t *testing.T) {
+		var v SendLocalListReq
+		err := json.Unmarshal([]byte(`{"listVersion":1}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("rejects invalid nested localAuthorizationList entry", func(t *testing.T) {
+		var v SendLocalListReq
+		err := json.Unmarshal([]byte(`{"listVersion":1,"updateType":"Full","localAuthorizationList":[{"idTag":""}]}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("rejects duplicate idTag", func(t *testing.T) {
+		var v SendLocalListReq
+		err := json.Unmarshal([]byte(`{"listVersion":1,"updateType":"Full","localAuthorizationList":[{"idTag":"ABC123"},{"idTag":"abc123"}]}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input with only required fields", func(t *testing.T) {
+		var v SendLocalListReq
+		err := json.Unmarshal([]byte(`{"listVersion":1,"updateType":"Full"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.ListVersion != 1 {
+			t.Errorf("got %d, want %d", v.ListVersion, 1)
+		}
+	})
+
+	t.Run("valid input with all fields", func(t *testing.T) {
+		var v SendLocalListReq
+		err := json.Unmarshal([]byte(`{"listVersion":1,"updateType":"Full","localAuthorizationList":[{"idTag":"ABC123"},{"idTag":"DEF456"}]}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(v.LocalAuthorizationList) != 2 || v.LocalAuthorizationList[0].IDTag != "ABC123" || v.LocalAuthorizationList[1].IDTag != "DEF456" {
+			t.Errorf("got %v, want idTags ABC123 and DEF456", v.LocalAuthorizationList)
+		}
+	})
+}
+
+func TestSendLocalListReqValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   SendLocalListReq
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input with only required fields",
+			input:   SendLocalListReq{ListVersion: 1, UpdateType: UpdateTypeFull},
+			wantErr: nil,
+		},
+		{
+			name: "accepts unique idTags",
+			input: SendLocalListReq{
+				ListVersion:            1,
+				UpdateType:             UpdateTypeFull,
+				LocalAuthorizationList: []AuthorizationData{{IDTag: "ABC123"}, {IDTag: "DEF456"}},
+			},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects missing updateType",
+			input:   SendLocalListReq{ListVersion: 1},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name: "rejects invalid localAuthorizationList entry",
+			input: SendLocalListReq{
+				ListVersion:            1,
+				UpdateType:             UpdateTypeFull,
+				LocalAuthorizationList: []AuthorizationData{{IDTag: ""}},
+			},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name: "rejects duplicate idTag",
+			input: SendLocalListReq{
+				ListVersion:            1,
+				UpdateType:             UpdateTypeFull,
+				LocalAuthorizationList: []AuthorizationData{{IDTag: "ABC123"}, {IDTag: "ABC123"}},
+			},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name: "rejects duplicate idTag case-insensitively",
+			input: SendLocalListReq{
+				ListVersion:            1,
+				UpdateType:             UpdateTypeFull,
+				LocalAuthorizationList: []AuthorizationData{{IDTag: "ABC123"}, {IDTag: "abc123"}},
+			},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestSendLocalListConfUnmarshal(t *testing.T) {
+	t.Run("rejects invalid status", func(t *testing.T) {
+		var v SendLocalListConf
+		err := json.Unmarshal([]byte(`{"status":"BadStatus"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input", func(t *testing.T) {
+		var v SendLocalListConf
+		err := json.Unmarshal([]byte(`{"status":"Accepted"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Status != UpdateStatusAccepted {
+			t.Errorf("got %q, want %q", v.Status, UpdateStatusAccepted)
+		}
+	})
+}
+
+func TestSendLocalListConfValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   SendLocalListConf
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   SendLocalListConf{Status: UpdateStatusAccepted},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects empty status",
+			input:   SendLocalListConf{Status: ""},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestSetChargingProfileReqUnmarshal(t *testing.T) {
+	t.Run("rejects negative connectorId", func(t *testing.T) {
+		var v SetChargingProfileReq
+		err := json.Unmarshal([]byte(`{"connectorId":-1,"csChargingProfiles":{"chargingProfileId":1,"stackLevel":0,"chargingProfilePurpose":"TxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"W","chargingSchedulePeriod":[{"startPeriod":0,"limit":32}]}}}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("rejects invalid nested csChargingProfiles", func(t *testing.T) {
+		var v SetChargingProfileReq
+		err := json.Unmarshal([]byte(`{"connectorId":0,"csChargingProfiles":{"chargingProfileId":1,"stackLevel":-1,"chargingProfilePurpose":"TxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"W","chargingSchedulePeriod":[{"startPeriod":0,"limit":32}]}}}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("rejects ChargePointMaxProfile with non-zero connectorId", func(t *testing.T) {
+		var v SetChargingProfileReq
+		err := json.Unmarshal([]byte(`{"connectorId":1,"csChargingProfiles":{"chargingProfileId":1,"stackLevel":0,"chargingProfilePurpose":"ChargePointMaxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"W","chargingSchedulePeriod":[{"startPeriod":0,"limit":32}]}}}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input", func(t *testing.T) {
+		var v SetChargingProfileReq
+		err := json.Unmarshal([]byte(`{"connectorId":1,"csChargingProfiles":{"chargingProfileId":1,"stackLevel":0,"chargingProfilePurpose":"TxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"W","chargingSchedulePeriod":[{"startPeriod":0,"limit":32}]}}}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.ConnectorID != 1 {
+			t.Errorf("got %d, want %d", v.ConnectorID, 1)
+		}
+
+		if v.CsChargingProfiles.ChargingProfilePurpose != ChargingProfilePurposeTypeTxProfile {
+			t.Errorf("got %q, want %q", v.CsChargingProfiles.ChargingProfilePurpose, ChargingProfilePurposeTypeTxProfile)
+		}
+	})
+
+	t.Run("valid input with ChargePointMaxProfile at connectorId 0", func(t *testing.T) {
+		var v SetChargingProfileReq
+		err := json.Unmarshal([]byte(`{"connectorId":0,"csChargingProfiles":{"chargingProfileId":1,"stackLevel":0,"chargingProfilePurpose":"ChargePointMaxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"W","chargingSchedulePeriod":[{"startPeriod":0,"limit":32}]}}}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestSetChargingProfileReqValidate(t *testing.T) {
+	txProfile := ChargingProfile{
+		ChargingProfileID:      1,
+		StackLevel:             0,
+		ChargingProfilePurpose: ChargingProfilePurposeTypeTxProfile,
+		ChargingProfileKind:    ChargingProfileKindTypeAbsolute,
+		ChargingSchedule: ChargingSchedule{
+			ChargingRateUnit:       ChargingRateUnitTypeW,
+			ChargingSchedulePeriod: []ChargingSchedulePeriod{{StartPeriod: 0, Limit: 32}},
+		},
+	}
+
+	maxProfile := txProfile
+	maxProfile.ChargingProfilePurpose = ChargingProfilePurposeTypeChargePointMaxProfile
+
+	invalidProfile := txProfile
+	invalidProfile.StackLevel = -1
+
+	tests := []struct {
+		name    string
+		input   SetChargingProfileReq
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   SetChargingProfileReq{ConnectorID: 1, CsChargingProfiles: txProfile},
+			wantErr: nil,
+		},
+		{
+			name:    "accepts zero connectorId",
+			input:   SetChargingProfileReq{ConnectorID: 0, CsChargingProfiles: txProfile},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects negative connectorId",
+			input:   SetChargingProfileReq{ConnectorID: -1, CsChargingProfiles: txProfile},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects invalid nested csChargingProfiles",
+			input:   SetChargingProfileReq{ConnectorID: 0, CsChargingProfiles: invalidProfile},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "accepts ChargePointMaxProfile at connectorId 0",
+			input:   SetChargingProfileReq{ConnectorID: 0, CsChargingProfiles: maxProfile},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects ChargePointMaxProfile at non-zero connectorId",
+			input:   SetChargingProfileReq{ConnectorID: 1, CsChargingProfiles: maxProfile},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestSetChargingProfileConfUnmarshal(t *testing.T) {
+	t.Run("rejects invalid status", func(t *testing.T) {
+		var v SetChargingProfileConf
+		err := json.Unmarshal([]byte(`{"status":"BadStatus"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input", func(t *testing.T) {
+		var v SetChargingProfileConf
+		err := json.Unmarshal([]byte(`{"status":"Accepted"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Status != ChargingProfileStatusAccepted {
+			t.Errorf("got %q, want %q", v.Status, ChargingProfileStatusAccepted)
+		}
+	})
+}
+
+func TestSetChargingProfileConfValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   SetChargingProfileConf
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   SetChargingProfileConf{Status: ChargingProfileStatusAccepted},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects empty status",
+			input:   SetChargingProfileConf{Status: ""},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestStartTransactionReqUnmarshal(t *testing.T) {
+	t.Run("rejects zero connectorId", func(t *testing.T) {
+		var v StartTransactionReq
+		err := json.Unmarshal([]byte(`{"connectorId":0,"idTag":"ABC123","meterStart":0,"timestamp":"2024-01-01T00:00:00Z"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("rejects negative meterStart", func(t *testing.T) {
+		var v StartTransactionReq
+		err := json.Unmarshal([]byte(`{"connectorId":1,"idTag":"ABC123","meterStart":-1,"timestamp":"2024-01-01T00:00:00Z"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("rejects missing timestamp", func(t *testing.T) {
+		var v StartTransactionReq
+		err := json.Unmarshal([]byte(`{"connectorId":1,"idTag":"ABC123","meterStart":0}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("valid input with only required fields", func(t *testing.T) {
+		var v StartTransactionReq
+		err := json.Unmarshal([]byte(`{"connectorId":1,"idTag":"ABC123","meterStart":0,"timestamp":"2024-01-01T00:00:00Z"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.ConnectorID != 1 {
+			t.Errorf("got %d, want %d", v.ConnectorID, 1)
+		}
+
+		if !v.Timestamp.Equal(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)) {
+			t.Errorf("got %v, want %v", v.Timestamp, "2024-01-01T00:00:00Z")
+		}
+	})
+
+	t.Run("valid input with all fields", func(t *testing.T) {
+		var v StartTransactionReq
+		err := json.Unmarshal([]byte(`{"connectorId":1,"idTag":"ABC123","meterStart":100,"reservationId":5,"timestamp":"2024-01-01T00:00:00Z"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.ReservationID == nil || *v.ReservationID != 5 {
+			t.Errorf("got %v, want %d", v.ReservationID, 5)
+		}
+	})
+}
+
+func TestStartTransactionReqValidate(t *testing.T) {
+	validTimestamp := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name    string
+		input   StartTransactionReq
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   StartTransactionReq{ConnectorID: 1, IDTag: "ABC123", MeterStart: 0, Timestamp: validTimestamp},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects zero connectorId",
+			input:   StartTransactionReq{ConnectorID: 0, IDTag: "ABC123", MeterStart: 0, Timestamp: validTimestamp},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects negative connectorId",
+			input:   StartTransactionReq{ConnectorID: -1, IDTag: "ABC123", MeterStart: 0, Timestamp: validTimestamp},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects empty idTag",
+			input:   StartTransactionReq{ConnectorID: 1, IDTag: "", MeterStart: 0, Timestamp: validTimestamp},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects oversized idTag",
+			input:   StartTransactionReq{ConnectorID: 1, IDTag: "ThisIsOver20Characters", MeterStart: 0, Timestamp: validTimestamp},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "accepts zero meterStart",
+			input:   StartTransactionReq{ConnectorID: 1, IDTag: "ABC123", MeterStart: 0, Timestamp: validTimestamp},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects negative meterStart",
+			input:   StartTransactionReq{ConnectorID: 1, IDTag: "ABC123", MeterStart: -1, Timestamp: validTimestamp},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects zero timestamp",
+			input:   StartTransactionReq{ConnectorID: 1, IDTag: "ABC123", MeterStart: 0},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "accepts optional reservationId",
+			input:   StartTransactionReq{ConnectorID: 1, IDTag: "ABC123", MeterStart: 0, ReservationID: ptr(int32(5)), Timestamp: validTimestamp},
+			wantErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestStartTransactionConfUnmarshal(t *testing.T) {
+	t.Run("rejects invalid nested idTagInfo", func(t *testing.T) {
+		var v StartTransactionConf
+		err := json.Unmarshal([]byte(`{"idTagInfo":{},"transactionId":1}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("rejects zero transactionId", func(t *testing.T) {
+		var v StartTransactionConf
+		err := json.Unmarshal([]byte(`{"idTagInfo":{"status":"Accepted"},"transactionId":0}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input", func(t *testing.T) {
+		var v StartTransactionConf
+		err := json.Unmarshal([]byte(`{"idTagInfo":{"status":"Accepted"},"transactionId":1}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.IDTagInfo.Status != AuthorizationStatusAccepted {
+			t.Errorf("got %q, want %q", v.IDTagInfo.Status, AuthorizationStatusAccepted)
+		}
+
+		if v.TransactionID != 1 {
+			t.Errorf("got %d, want %d", v.TransactionID, 1)
+		}
+	})
+}
+
+func TestStartTransactionConfValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   StartTransactionConf
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   StartTransactionConf{IDTagInfo: IDTagInfo{Status: AuthorizationStatusAccepted}, TransactionID: 1},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects invalid idTagInfo",
+			input:   StartTransactionConf{IDTagInfo: IDTagInfo{Status: ""}, TransactionID: 1},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects zero transactionId",
+			input:   StartTransactionConf{IDTagInfo: IDTagInfo{Status: AuthorizationStatusAccepted}, TransactionID: 0},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects negative transactionId",
+			input:   StartTransactionConf{IDTagInfo: IDTagInfo{Status: AuthorizationStatusAccepted}, TransactionID: -1},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestStatusNotificationReqUnmarshal(t *testing.T) {
+	t.Run("rejects negative connectorId", func(t *testing.T) {
+		var v StatusNotificationReq
+		err := json.Unmarshal([]byte(`{"connectorId":-1,"errorCode":"NoError","status":"Available"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("rejects invalid errorCode", func(t *testing.T) {
+		var v StatusNotificationReq
+		err := json.Unmarshal([]byte(`{"connectorId":0,"errorCode":"BadError","status":"Available"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("rejects invalid status", func(t *testing.T) {
+		var v StatusNotificationReq
+		err := json.Unmarshal([]byte(`{"connectorId":0,"errorCode":"NoError","status":"BadStatus"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("rejects oversized info", func(t *testing.T) {
+		var v StatusNotificationReq
+		err := json.Unmarshal([]byte(`{"connectorId":0,"errorCode":"NoError","status":"Available","info":"ThisStringIsOverFiftyCharactersLongAndShouldBeRejected"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input with only required fields", func(t *testing.T) {
+		var v StatusNotificationReq
+		err := json.Unmarshal([]byte(`{"connectorId":0,"errorCode":"NoError","status":"Available"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.ErrorCode != ChargePointErrorCodeNoError {
+			t.Errorf("got %q, want %q", v.ErrorCode, ChargePointErrorCodeNoError)
+		}
+
+		if v.Status != ChargePointStatusAvailable {
+			t.Errorf("got %q, want %q", v.Status, ChargePointStatusAvailable)
+		}
+	})
+
+	t.Run("valid input with all fields", func(t *testing.T) {
+		var v StatusNotificationReq
+		err := json.Unmarshal([]byte(`{"connectorId":1,"errorCode":"NoError","info":"info text","status":"Available","timestamp":"2024-01-01T00:00:00Z","vendorId":"ACME","vendorErrorCode":"VE01"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Info == nil || *v.Info != "info text" {
+			t.Errorf("got %v, want %q", v.Info, "info text")
+		}
+
+		if v.Timestamp == nil || !v.Timestamp.Equal(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)) {
+			t.Errorf("got %v, want %v", v.Timestamp, "2024-01-01T00:00:00Z")
+		}
+
+		if v.VendorID == nil || *v.VendorID != "ACME" {
+			t.Errorf("got %v, want %q", v.VendorID, "ACME")
+		}
+
+		if v.VendorErrorCode == nil || *v.VendorErrorCode != "VE01" {
+			t.Errorf("got %v, want %q", v.VendorErrorCode, "VE01")
+		}
+	})
+}
+
+func TestStatusNotificationReqValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   StatusNotificationReq
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   StatusNotificationReq{ConnectorID: 1, ErrorCode: ChargePointErrorCodeNoError, Status: ChargePointStatusAvailable},
+			wantErr: nil,
+		},
+		{
+			name:    "accepts zero connectorId",
+			input:   StatusNotificationReq{ConnectorID: 0, ErrorCode: ChargePointErrorCodeNoError, Status: ChargePointStatusAvailable},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects negative connectorId",
+			input:   StatusNotificationReq{ConnectorID: -1, ErrorCode: ChargePointErrorCodeNoError, Status: ChargePointStatusAvailable},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects empty errorCode",
+			input:   StatusNotificationReq{ConnectorID: 0, ErrorCode: "", Status: ChargePointStatusAvailable},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects empty status",
+			input:   StatusNotificationReq{ConnectorID: 0, ErrorCode: ChargePointErrorCodeNoError, Status: ""},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "accepts valid info",
+			input:   StatusNotificationReq{ConnectorID: 0, ErrorCode: ChargePointErrorCodeNoError, Status: ChargePointStatusAvailable, Info: ptr(CiString50Type("info text"))},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects oversized info",
+			input:   StatusNotificationReq{ConnectorID: 0, ErrorCode: ChargePointErrorCodeNoError, Status: ChargePointStatusAvailable, Info: ptr(CiString50Type("ThisStringIsOverFiftyCharactersLongAndShouldBeRejected"))},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "accepts valid vendorId",
+			input:   StatusNotificationReq{ConnectorID: 0, ErrorCode: ChargePointErrorCodeNoError, Status: ChargePointStatusAvailable, VendorID: ptr(CiString255Type("ACME"))},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects non-printable vendorId",
+			input:   StatusNotificationReq{ConnectorID: 0, ErrorCode: ChargePointErrorCodeNoError, Status: ChargePointStatusAvailable, VendorID: ptr(CiString255Type("café"))},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "accepts valid vendorErrorCode",
+			input:   StatusNotificationReq{ConnectorID: 0, ErrorCode: ChargePointErrorCodeNoError, Status: ChargePointStatusAvailable, VendorErrorCode: ptr(CiString50Type("VE01"))},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects oversized vendorErrorCode",
+			input:   StatusNotificationReq{ConnectorID: 0, ErrorCode: ChargePointErrorCodeNoError, Status: ChargePointStatusAvailable, VendorErrorCode: ptr(CiString50Type("ThisStringIsOverFiftyCharactersLongAndShouldBeRejected"))},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestStatusNotificationConfUnmarshal(t *testing.T) {
+	t.Run("valid input", func(t *testing.T) {
+		var v StatusNotificationConf
+		err := json.Unmarshal([]byte(`{}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestStatusNotificationConfValidate(t *testing.T) {
+	t.Run("accepts valid input", func(t *testing.T) {
+		err := StatusNotificationConf{}.Validate()
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestStopTransactionReqUnmarshal(t *testing.T) {
+	t.Run("rejects negative meterStop", func(t *testing.T) {
+		var v StopTransactionReq
+		err := json.Unmarshal([]byte(`{"meterStop":-1,"timestamp":"2024-01-01T00:00:00Z","transactionId":1}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("rejects missing timestamp", func(t *testing.T) {
+		var v StopTransactionReq
+		err := json.Unmarshal([]byte(`{"meterStop":0,"transactionId":1}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("rejects zero transactionId", func(t *testing.T) {
+		var v StopTransactionReq
+		err := json.Unmarshal([]byte(`{"meterStop":0,"timestamp":"2024-01-01T00:00:00Z","transactionId":0}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("rejects invalid nested transactionData", func(t *testing.T) {
+		var v StopTransactionReq
+		err := json.Unmarshal([]byte(`{"meterStop":0,"timestamp":"2024-01-01T00:00:00Z","transactionId":1,"transactionData":[{"timestamp":"2024-01-01T00:00:00Z","sampledValue":[]}]}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("valid input with only required fields", func(t *testing.T) {
+		var v StopTransactionReq
+		err := json.Unmarshal([]byte(`{"meterStop":100,"timestamp":"2024-01-01T00:00:00Z","transactionId":1}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.MeterStop != 100 {
+			t.Errorf("got %d, want %d", v.MeterStop, 100)
+		}
+
+		if v.TransactionID != 1 {
+			t.Errorf("got %d, want %d", v.TransactionID, 1)
+		}
+	})
+
+	t.Run("valid input with all fields", func(t *testing.T) {
+		var v StopTransactionReq
+		err := json.Unmarshal([]byte(`{"idTag":"ABC123","meterStop":100,"timestamp":"2024-01-01T00:00:00Z","transactionId":1,"reason":"Local","transactionData":[{"timestamp":"2024-01-01T00:00:00Z","sampledValue":[{"value":"100"}]}]}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.IDTag == nil || *v.IDTag != "ABC123" {
+			t.Errorf("got %v, want %q", v.IDTag, "ABC123")
+		}
+
+		if v.Reason == nil || *v.Reason != ReasonLocal {
+			t.Errorf("got %v, want %q", v.Reason, ReasonLocal)
+		}
+
+		if len(v.TransactionData) != 1 {
+			t.Errorf("got %v, want a single transactionData entry", v.TransactionData)
+		}
+	})
+}
+
+func TestStopTransactionReqValidate(t *testing.T) {
+	validTimestamp := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name    string
+		input   StopTransactionReq
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   StopTransactionReq{MeterStop: 0, Timestamp: validTimestamp, TransactionID: 1},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects oversized idTag",
+			input:   StopTransactionReq{IDTag: ptr(IDToken("ThisIsOver20Characters")), MeterStop: 0, Timestamp: validTimestamp, TransactionID: 1},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "accepts zero meterStop",
+			input:   StopTransactionReq{MeterStop: 0, Timestamp: validTimestamp, TransactionID: 1},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects negative meterStop",
+			input:   StopTransactionReq{MeterStop: -1, Timestamp: validTimestamp, TransactionID: 1},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects zero timestamp",
+			input:   StopTransactionReq{MeterStop: 0, TransactionID: 1},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects zero transactionId",
+			input:   StopTransactionReq{MeterStop: 0, Timestamp: validTimestamp, TransactionID: 0},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects negative transactionId",
+			input:   StopTransactionReq{MeterStop: 0, Timestamp: validTimestamp, TransactionID: -1},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name: "accepts valid transactionData",
+			input: StopTransactionReq{
+				MeterStop:     0,
+				Timestamp:     validTimestamp,
+				TransactionID: 1,
+				TransactionData: []MeterValue{
+					{Timestamp: validTimestamp, SampledValue: []SampledValue{{Value: "100"}}},
+				},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "rejects invalid transactionData entry",
+			input: StopTransactionReq{
+				MeterStop:       0,
+				Timestamp:       validTimestamp,
+				TransactionID:   1,
+				TransactionData: []MeterValue{{Timestamp: validTimestamp}},
+			},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestStopTransactionConfUnmarshal(t *testing.T) {
+	t.Run("rejects invalid nested idTagInfo", func(t *testing.T) {
+		var v StopTransactionConf
+		err := json.Unmarshal([]byte(`{"idTagInfo":{}}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("valid input with no fields", func(t *testing.T) {
+		var v StopTransactionConf
+		err := json.Unmarshal([]byte(`{}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.IDTagInfo != nil {
+			t.Errorf("got %v, want nil", v.IDTagInfo)
+		}
+	})
+
+	t.Run("valid input with idTagInfo", func(t *testing.T) {
+		var v StopTransactionConf
+		err := json.Unmarshal([]byte(`{"idTagInfo":{"status":"Accepted"}}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.IDTagInfo == nil || v.IDTagInfo.Status != AuthorizationStatusAccepted {
+			t.Errorf("got %v, want status %q", v.IDTagInfo, AuthorizationStatusAccepted)
+		}
+	})
+}
+
+func TestStopTransactionConfValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   StopTransactionConf
+		wantErr error
+	}{
+		{
+			name:    "accepts nil idTagInfo",
+			input:   StopTransactionConf{},
+			wantErr: nil,
+		},
+		{
+			name:    "accepts valid idTagInfo",
+			input:   StopTransactionConf{IDTagInfo: &IDTagInfo{Status: AuthorizationStatusAccepted}},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects invalid idTagInfo",
+			input:   StopTransactionConf{IDTagInfo: &IDTagInfo{Status: ""}},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestTriggerMessageReqUnmarshal(t *testing.T) {
+	t.Run("rejects missing requestedMessage", func(t *testing.T) {
+		var v TriggerMessageReq
+		err := json.Unmarshal([]byte(`{}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("rejects zero connectorId", func(t *testing.T) {
+		var v TriggerMessageReq
+		err := json.Unmarshal([]byte(`{"requestedMessage":"Heartbeat","connectorId":0}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input with only required fields", func(t *testing.T) {
+		var v TriggerMessageReq
+		err := json.Unmarshal([]byte(`{"requestedMessage":"Heartbeat"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.RequestedMessage != MessageTriggerHeartbeat {
+			t.Errorf("got %q, want %q", v.RequestedMessage, MessageTriggerHeartbeat)
+		}
+	})
+
+	t.Run("valid input with all fields", func(t *testing.T) {
+		var v TriggerMessageReq
+		err := json.Unmarshal([]byte(`{"requestedMessage":"StatusNotification","connectorId":1}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.ConnectorID == nil || *v.ConnectorID != 1 {
+			t.Errorf("got %v, want %d", v.ConnectorID, 1)
+		}
+	})
+}
+
+func TestTriggerMessageReqValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   TriggerMessageReq
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input with only required fields",
+			input:   TriggerMessageReq{RequestedMessage: MessageTriggerHeartbeat},
+			wantErr: nil,
+		},
+		{
+			name:    "accepts positive connectorId",
+			input:   TriggerMessageReq{RequestedMessage: MessageTriggerStatusNotification, ConnectorID: ptr(int32(1))},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects missing requestedMessage",
+			input:   TriggerMessageReq{},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects zero connectorId",
+			input:   TriggerMessageReq{RequestedMessage: MessageTriggerHeartbeat, ConnectorID: ptr(int32(0))},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects negative connectorId",
+			input:   TriggerMessageReq{RequestedMessage: MessageTriggerHeartbeat, ConnectorID: ptr(int32(-1))},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestTriggerMessageConfUnmarshal(t *testing.T) {
+	t.Run("rejects invalid status", func(t *testing.T) {
+		var v TriggerMessageConf
+		err := json.Unmarshal([]byte(`{"status":"BadStatus"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input", func(t *testing.T) {
+		var v TriggerMessageConf
+		err := json.Unmarshal([]byte(`{"status":"Accepted"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Status != TriggerMessageStatusAccepted {
+			t.Errorf("got %q, want %q", v.Status, TriggerMessageStatusAccepted)
+		}
+	})
+}
+
+func TestTriggerMessageConfValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   TriggerMessageConf
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   TriggerMessageConf{Status: TriggerMessageStatusAccepted},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects empty status",
+			input:   TriggerMessageConf{Status: ""},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestUnlockConnectorReqUnmarshal(t *testing.T) {
+	t.Run("rejects zero connectorId", func(t *testing.T) {
+		var v UnlockConnectorReq
+		err := json.Unmarshal([]byte(`{"connectorId":0}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input", func(t *testing.T) {
+		var v UnlockConnectorReq
+		err := json.Unmarshal([]byte(`{"connectorId":1}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.ConnectorID != 1 {
+			t.Errorf("got %d, want %d", v.ConnectorID, 1)
+		}
+	})
+}
+
+func TestUnlockConnectorReqValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   UnlockConnectorReq
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   UnlockConnectorReq{ConnectorID: 1},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects zero connectorId",
+			input:   UnlockConnectorReq{ConnectorID: 0},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects negative connectorId",
+			input:   UnlockConnectorReq{ConnectorID: -1},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestUnlockConnectorConfUnmarshal(t *testing.T) {
+	t.Run("rejects invalid status", func(t *testing.T) {
+		var v UnlockConnectorConf
+		err := json.Unmarshal([]byte(`{"status":"BadStatus"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input", func(t *testing.T) {
+		var v UnlockConnectorConf
+		err := json.Unmarshal([]byte(`{"status":"Unlocked"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Status != UnlockStatusUnlocked {
+			t.Errorf("got %q, want %q", v.Status, UnlockStatusUnlocked)
+		}
+	})
+}
+
+func TestUnlockConnectorConfValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   UnlockConnectorConf
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input",
+			input:   UnlockConnectorConf{Status: UnlockStatusUnlocked},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects empty status",
+			input:   UnlockConnectorConf{Status: ""},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestUpdateFirmwareReqUnmarshal(t *testing.T) {
+	t.Run("rejects missing location", func(t *testing.T) {
+		var v UpdateFirmwareReq
+		err := json.Unmarshal([]byte(`{"retrieveDate":"2024-01-01T00:00:00Z"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("rejects negative retries", func(t *testing.T) {
+		var v UpdateFirmwareReq
+		err := json.Unmarshal([]byte(`{"location":"ftp://example.com/","retrieveDate":"2024-01-01T00:00:00Z","retries":-1}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("rejects missing retrieveDate", func(t *testing.T) {
+		var v UpdateFirmwareReq
+		err := json.Unmarshal([]byte(`{"location":"ftp://example.com/"}`), &v)
+
+		if !errors.Is(err, ocpp.ErrOccurenceConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrOccurenceConstraintViolation)
+		}
+	})
+
+	t.Run("rejects zero retryInterval", func(t *testing.T) {
+		var v UpdateFirmwareReq
+		err := json.Unmarshal([]byte(`{"location":"ftp://example.com/","retrieveDate":"2024-01-01T00:00:00Z","retryInterval":0}`), &v)
+
+		if !errors.Is(err, ocpp.ErrPropertyConstraintViolation) {
+			t.Errorf("got %v, want %v", err, ocpp.ErrPropertyConstraintViolation)
+		}
+	})
+
+	t.Run("valid input with only required fields", func(t *testing.T) {
+		var v UpdateFirmwareReq
+		err := json.Unmarshal([]byte(`{"location":"ftp://example.com/","retrieveDate":"2024-01-01T00:00:00Z"}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Location != "ftp://example.com/" {
+			t.Errorf("got %q, want %q", v.Location, "ftp://example.com/")
+		}
+
+		if !v.RetrieveDate.Equal(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)) {
+			t.Errorf("got %v, want %v", v.RetrieveDate, "2024-01-01T00:00:00Z")
+		}
+	})
+
+	t.Run("valid input with all fields", func(t *testing.T) {
+		var v UpdateFirmwareReq
+		err := json.Unmarshal([]byte(`{"location":"ftp://example.com/","retrieveDate":"2024-01-01T00:00:00Z","retries":3,"retryInterval":60}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v.Retries == nil || *v.Retries != 3 {
+			t.Errorf("got %v, want %d", v.Retries, 3)
+		}
+
+		if v.RetryInterval == nil || *v.RetryInterval != 60 {
+			t.Errorf("got %v, want %d", v.RetryInterval, 60)
+		}
+	})
+}
+
+func TestUpdateFirmwareReqValidate(t *testing.T) {
+	validRetrieveDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name    string
+		input   UpdateFirmwareReq
+		wantErr error
+	}{
+		{
+			name:    "accepts valid input with only required fields",
+			input:   UpdateFirmwareReq{Location: "ftp://example.com/", RetrieveDate: validRetrieveDate},
+			wantErr: nil,
+		},
+		{
+			name: "accepts valid input with all fields",
+			input: UpdateFirmwareReq{
+				Location:      "ftp://example.com/",
+				RetrieveDate:  validRetrieveDate,
+				Retries:       ptr(int32(3)),
+				RetryInterval: ptr(int32(60)),
+			},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects empty location",
+			input:   UpdateFirmwareReq{Location: "", RetrieveDate: validRetrieveDate},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "accepts zero retries",
+			input:   UpdateFirmwareReq{Location: "ftp://example.com/", RetrieveDate: validRetrieveDate, Retries: ptr(int32(0))},
+			wantErr: nil,
+		},
+		{
+			name:    "rejects negative retries",
+			input:   UpdateFirmwareReq{Location: "ftp://example.com/", RetrieveDate: validRetrieveDate, Retries: ptr(int32(-1))},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects zero retrieveDate",
+			input:   UpdateFirmwareReq{Location: "ftp://example.com/"},
+			wantErr: ocpp.ErrOccurenceConstraintViolation,
+		},
+		{
+			name:    "rejects zero retryInterval",
+			input:   UpdateFirmwareReq{Location: "ftp://example.com/", RetrieveDate: validRetrieveDate, RetryInterval: ptr(int32(0))},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "rejects negative retryInterval",
+			input:   UpdateFirmwareReq{Location: "ftp://example.com/", RetrieveDate: validRetrieveDate, RetryInterval: ptr(int32(-1))},
+			wantErr: ocpp.ErrPropertyConstraintViolation,
+		},
+		{
+			name:    "accepts positive retryInterval",
+			input:   UpdateFirmwareReq{Location: "ftp://example.com/", RetrieveDate: validRetrieveDate, RetryInterval: ptr(int32(60))},
+			wantErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("unexpected error\ngot:  %v\nwant: %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestUpdateFirmwareConfUnmarshal(t *testing.T) {
+	t.Run("valid input", func(t *testing.T) {
+		var v UpdateFirmwareConf
+		err := json.Unmarshal([]byte(`{}`), &v)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestUpdateFirmwareConfValidate(t *testing.T) {
+	t.Run("accepts valid input", func(t *testing.T) {
+		err := UpdateFirmwareConf{}.Validate()
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
