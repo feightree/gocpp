@@ -1357,9 +1357,9 @@ func TestGetCompositeScheduleConfValidate(t *testing.T) {
 			wantErr: nil,
 		},
 		{
-			name:    "rejects zero connectorId",
+			name:    "accepts zero connectorId",
 			input:   GetCompositeScheduleConf{Status: GetCompositeScheduleStatusAccepted, ConnectorID: ptr(int32(0))},
-			wantErr: ocpp.ErrPropertyConstraintViolation,
+			wantErr: nil,
 		},
 		{
 			name:    "rejects negative connectorId",

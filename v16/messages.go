@@ -804,8 +804,8 @@ func (s GetCompositeScheduleConf) Validate() error {
 		return ocpp.NewError(ocpp.ErrOccurenceConstraintViolation, "status", "required field is missing")
 	}
 
-	if s.ConnectorID != nil && *s.ConnectorID < 1 {
-		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "connectorId", "must be > 0")
+	if s.ConnectorID != nil && *s.ConnectorID < 0 {
+		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "connectorId", "must be >= 0")
 	}
 
 	return nil
