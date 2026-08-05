@@ -23,7 +23,7 @@ make install
 Open a pull request against `main`. Include:
 
 - A clear description of what the change does and why.
-- Reference to any relevant spec section (e.g. `OCPP 1.6 §6.3`).
+- Reference to any relevant spec section (e.g. `OCPP 1.6 §6.3` or `OCPP 2.1 §1.3.1`).
 - Whether AI tools were used (see below).
 
 ## Code style
@@ -44,6 +44,8 @@ Pull request review discussion should come from you, not pasted from an AI.
 
 ## Spec compliance
 
-This library implements [OCPP 1.6](https://www.openchargealliance.org/protocols/ocpp-16/).
-Changes must remain compliant with the specification. If you believe the spec
-is ambiguous or incorrect, open an issue to discuss before implementing.
+This library implements [OCPP 1.6](https://openchargealliance.org/protocols/open-charge-point-protocol/#ExploreOCPP1.6)
+(`v16`) and [OCPP 2.1](https://openchargealliance.org/protocols/open-charge-point-protocol/#ExploreOCPP2.1)
+(`v21`). Changes must remain compliant with the relevant specification. If
+you believe a spec is ambiguous or incorrect, open an issue to discuss before
+implementing.
