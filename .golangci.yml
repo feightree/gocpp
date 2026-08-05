@@ -14,6 +14,16 @@ linters:
         - all
       initialisms:
         - EVSE
+        - EV
+        - DER
+        - V2X
+        - OCSP
+        - APN
+        - VPN
+        - SOC
+        - SOH
+        - OCPP
+        - CSMS
   exclusions:
     rules:
       - path: _test\.go
