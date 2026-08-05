@@ -7,6 +7,8 @@ import (
 	"fmt"
 )
 
+// ErrorCode identifies the category of an OCPP CALLERROR, as sent in response
+// to a malformed or otherwise invalid CALL.
 type ErrorCode string
 
 const (
@@ -42,9 +44,14 @@ func (c ErrorCode) Error() string {
 	return string(c)
 }
 
+// Error represents a validation failure against the OCPP spec, identifying
+// the ErrorCode, the offending field (if any), and a human-readable message.
 type Error struct {
-	Code    ErrorCode
-	Field   string
+	// Code categorizes the failure, matching the error codes OCPP uses in CALLERROR messages.
+	Code ErrorCode
+	// Field is the dotted path to the offending field, if applicable. May be empty.
+	Field string
+	// Message is a human-readable description of the failure.
 	Message string
 }
 

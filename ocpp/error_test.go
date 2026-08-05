@@ -74,7 +74,7 @@ func TestWrapField(t *testing.T) {
 		}
 	})
 
-	t.Run("doesnt wrap an non-ocp error", func(t *testing.T) {
+	t.Run("doesn't wrap a non-ocpp error", func(t *testing.T) {
 		err := errors.New("error!")
 		wrap := WrapField("myfield", err)
 

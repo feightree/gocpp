@@ -1743,12 +1743,12 @@ func TestKeyValueUnmarshalJSON(t *testing.T) {
 		},
 		{
 			name:    "rejects key with non-printable ASCII",
-			input:   `{"key":"foobar","readonly":false}`,
+			input:   `{"key":"foo` + "\x7f" + `bar","readonly":false}`,
 			wantErr: ocpp.ErrPropertyConstraintViolation,
 		},
 		{
 			name:    "rejects value with non-printable ASCII",
-			input:   `{"key":"SomeKey","readonly":false,"value":"foobar"}`,
+			input:   `{"key":"SomeKey","readonly":false,"value":"foo` + "\x7f" + `bar"}`,
 			wantErr: ocpp.ErrPropertyConstraintViolation,
 		},
 	}
