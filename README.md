@@ -1,15 +1,16 @@
 # gocpp
 
-Go types and message definitions for the [Open Charge Point Protocol (OCPP)](https://www.openchargealliance.org/), versions [1.6](https://openchargealliance.org/protocols/open-charge-point-protocol/#ExploreOCPP1.6) and [2.1](https://openchargealliance.org/protocols/open-charge-point-protocol/#ExploreOCPP2.1), as defined by the Open Charge Alliance.
+Go types and message definitions for the [Open Charge Point Protocol (OCPP)](https://www.openchargealliance.org/), versions [1.6](https://openchargealliance.org/protocols/open-charge-point-protocol/#ExploreOCPP1.6), [2.0.1](https://openchargealliance.org/protocols/open-charge-point-protocol/#ExploreOCPP2.0.1) and [2.1](https://openchargealliance.org/protocols/open-charge-point-protocol/#ExploreOCPP2.1), as defined by the Open Charge Alliance.
 
 ## What this is
 
-`gocpp` provides spec-compliant Go types for OCPP messages and data types, suitable for use as a foundation when building charge point or central system implementations, for either protocol version:
+`gocpp` provides spec-compliant Go types for OCPP messages and data types, suitable for use as a foundation when building charge point or central system implementations, for any of the three protocol versions:
 
 - **OCPP 1.6** (`v16`): all 56 message types (Authorize through UpdateFirmware) and their supporting data types.
+- **OCPP 2.0.1** (`v201`): all 64 actions (128 request/response types), 54 datatypes, and 88 enumerations.
 - **OCPP 2.1** (`v21`): all 91 actions (181 request/response types — one, `NotifyPeriodicEventStream`, is a one-way message with no response), 121 datatypes, and 110 enumerations.
 
-Both are implemented with validation on unmarshal and full test coverage.
+All three are implemented with validation on unmarshal and full test coverage.
 
 ## What this is not
 
@@ -18,8 +19,9 @@ This library does not provide a WebSocket transport, message routing, or any net
 ## Packages
 
 - `v16` — OCPP 1.6 message and data types (enums, request/response structs, suffixed `Req`/`Conf` per OCPP 1.6's own terminology).
+- `v201` — OCPP 2.0.1 message and data types (enums, request/response structs, suffixed `Request`/`Response` per OCPP 2.0.1's own terminology).
 - `v21` — OCPP 2.1 message and data types (enums, request/response structs, suffixed `Request`/`Response` per OCPP 2.1's own terminology).
-- `ocpp` — shared, version-agnostic error types used across both `v16` and `v21`.
+- `ocpp` — shared, version-agnostic error types used across `v16`, `v201`, and `v21`.
 
 ## Installation
 
@@ -55,11 +57,11 @@ if err := conf.Validate(); err != nil {
 data, err := json.Marshal(conf)
 ```
 
-`v21` follows the same design (`UnmarshalJSON` validates, `Validate` is
-exposed for hand-built messages you marshal yourself), just with `Request`/
-`Response` naming instead of `Req`/`Conf`, e.g. `v21.BootNotificationRequest`
-/ `v21.BootNotificationResponse` — each package matches the terminology its
-own OCPP version uses.
+`v201` and `v21` follow the same design (`UnmarshalJSON` validates,
+`Validate` is exposed for hand-built messages you marshal yourself), just
+with `Request`/`Response` naming instead of `Req`/`Conf`, e.g.
+`v21.BootNotificationRequest` / `v21.BootNotificationResponse` — each
+package matches the terminology its own OCPP version uses.
 
 Every type validates itself on unmarshal — enum fields must match a known
 value, required fields must be present, and constrained fields (string
