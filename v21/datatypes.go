@@ -67,7 +67,7 @@ func NewIdentifierString6Type(s string) (IdentifierString6Type, error) {
 }
 
 func (s IdentifierString6Type) Validate() error {
-	return validateIdentifierString(string(s), 6, "IdentifierString6Type")
+	return ocpp.ValidateIdentifierString(string(s), 6, "IdentifierString6Type")
 }
 
 func (s IdentifierString6Type) Equals(other string) bool {
@@ -110,7 +110,7 @@ func NewIdentifierString20Type(s string) (IdentifierString20Type, error) {
 }
 
 func (s IdentifierString20Type) Validate() error {
-	return validateIdentifierString(string(s), 20, "IdentifierString20Type")
+	return ocpp.ValidateIdentifierString(string(s), 20, "IdentifierString20Type")
 }
 
 func (s IdentifierString20Type) Equals(other string) bool {
@@ -153,7 +153,7 @@ func NewIdentifierString32Type(s string) (IdentifierString32Type, error) {
 }
 
 func (s IdentifierString32Type) Validate() error {
-	return validateIdentifierString(string(s), 32, "IdentifierString32Type")
+	return ocpp.ValidateIdentifierString(string(s), 32, "IdentifierString32Type")
 }
 
 func (s IdentifierString32Type) Equals(other string) bool {
@@ -196,7 +196,7 @@ func NewIdentifierString36Type(s string) (IdentifierString36Type, error) {
 }
 
 func (s IdentifierString36Type) Validate() error {
-	return validateIdentifierString(string(s), 36, "IdentifierString36Type")
+	return ocpp.ValidateIdentifierString(string(s), 36, "IdentifierString36Type")
 }
 
 func (s IdentifierString36Type) Equals(other string) bool {
@@ -239,7 +239,7 @@ func NewIdentifierString40Type(s string) (IdentifierString40Type, error) {
 }
 
 func (s IdentifierString40Type) Validate() error {
-	return validateIdentifierString(string(s), 40, "IdentifierString40Type")
+	return ocpp.ValidateIdentifierString(string(s), 40, "IdentifierString40Type")
 }
 
 func (s IdentifierString40Type) Equals(other string) bool {
@@ -282,7 +282,7 @@ func NewIdentifierString50Type(s string) (IdentifierString50Type, error) {
 }
 
 func (s IdentifierString50Type) Validate() error {
-	return validateIdentifierString(string(s), 50, "IdentifierString50Type")
+	return ocpp.ValidateIdentifierString(string(s), 50, "IdentifierString50Type")
 }
 
 func (s IdentifierString50Type) Equals(other string) bool {
@@ -325,7 +325,7 @@ func NewIdentifierString128Type(s string) (IdentifierString128Type, error) {
 }
 
 func (s IdentifierString128Type) Validate() error {
-	return validateIdentifierString(string(s), 128, "IdentifierString128Type")
+	return ocpp.ValidateIdentifierString(string(s), 128, "IdentifierString128Type")
 }
 
 func (s IdentifierString128Type) Equals(other string) bool {
@@ -368,7 +368,7 @@ func NewIdentifierString255Type(s string) (IdentifierString255Type, error) {
 }
 
 func (s IdentifierString255Type) Validate() error {
-	return validateIdentifierString(string(s), 255, "IdentifierString255Type")
+	return ocpp.ValidateIdentifierString(string(s), 255, "IdentifierString255Type")
 }
 
 func (s IdentifierString255Type) Equals(other string) bool {
@@ -392,26 +392,6 @@ func (s *IdentifierString255Type) UnmarshalJSON(data []byte) error {
 	}
 
 	*s = c
-	return nil
-}
-
-// validateIdentifierString checks that s is no longer than maxLen and
-// contains only characters from the identifierString charset defined in
-// OCPP 2.1 Part 2 §2.1.4: a-z, A-Z, 0-9, "*", "-", "_", "=", ":", "+", "|", "@", ".".
-func validateIdentifierString(s string, maxLen int, typeName string) error {
-	if len(s) > maxLen {
-		return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "", fmt.Sprintf("%s exceeds max length of %d", typeName, maxLen))
-	}
-
-	for _, r := range s {
-		switch {
-		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
-		case strings.ContainsRune("*-_=:+|@.", r):
-		default:
-			return ocpp.NewError(ocpp.ErrPropertyConstraintViolation, "", fmt.Sprintf("%s contains characters outside the identifierString charset", typeName))
-		}
-	}
-
 	return nil
 }
 
